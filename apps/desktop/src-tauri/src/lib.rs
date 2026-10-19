@@ -1,7 +1,27 @@
-/// Empty Tauri 2 shell (Milestone 1). Commands, menus and file associations land in Milestone 8.
+//! DaSignature desktop shell (Tauri 2). Milestone 2 adds the storage commands used by
+//! `TauriStorageAdapter`; menus and file associations land in Milestone 8.
+pub mod storage;
+
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            let dir = app.path().app_data_dir()?;
+            app.manage(storage::Storage::new(dir, Box::new(storage::OsKeyring)));
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            storage::storage_open,
+            storage::storage_exec,
+            storage::storage_query,
+            storage::storage_put_file,
+            storage::storage_get_file,
+            storage::storage_delete_file,
+            storage::storage_usage,
+            storage::storage_close,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running DaSignature");
 }

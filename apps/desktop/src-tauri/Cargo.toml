@@ -15,6 +15,16 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+serde_json = "1"
+base64 = "0.22"
+# SPEC Sec 6: SQLite + SQLCipher on desktop. OpenSSL is vendored so the build needs no system libssl.
+rusqlite = { version = "0.37", features = ["bundled-sqlcipher-vendored-openssl"] }
+# OS credential store for the database key (macOS Keychain, Windows Credential Manager, Secret Service).
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+getrandom = "0.3"
+
+[dev-dependencies]
+tempfile = "3"
 
 [profile.release]
 # Size budget: desktop installer < 20 MB (SPEC Sec 1).

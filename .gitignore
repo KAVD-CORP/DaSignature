@@ -8,3 +8,10 @@ coverage/
 # Tauri / Rust
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/schemas/
+# Test output (Playwright, Vitest browser mode)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+__screenshots__/
+.vitest-attachments/

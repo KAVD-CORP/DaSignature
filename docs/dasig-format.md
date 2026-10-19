@@ -1,0 +1,1 @@
+# .dasig format: moved. The canonical spec of the `.dasig` backup (stored ZIP with `manifest.json` + `payload.bin`, AES-256-GCM, argon2id, 1 MiB chunks / `CHUNK_SIZE`) is [backup-format.md](./backup-format.md) (PM #67).

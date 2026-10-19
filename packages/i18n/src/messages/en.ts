@@ -21,6 +21,16 @@ export const en = {
       done: 'All data cleared',
     },
   },
+  storage: {
+    /** PM #69: data or a backup from a newer app version is refused, untouched. */
+    updateRequired: {
+      title: 'Update DaSignature',
+      database:
+        'Your data was saved by a newer version of DaSignature. Update DaSignature to open it. Nothing was changed.',
+      backup:
+        'This backup was made by a newer version of DaSignature. Update DaSignature to open it. Nothing was changed.',
+    },
+  },
 } as const;
 
 type Widen<T> = { readonly [K in keyof T]: T[K] extends string ? string : Widen<T[K]> };

@@ -21,7 +21,11 @@
     "lint:tokens": "node scripts/check-design-tokens.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",
     "check:audit": "node scripts/check-audit.mjs",
-    "test:e2e": "pnpm --filter @dasignature/web test:e2e"
+    "test:e2e": "pnpm --filter @dasignature/web test:e2e",
+    "test:browser": "pnpm --filter @dasignature/storage test:browser",
+    "test:native": "pnpm --filter @dasignature/storage test:native",
+    "check:contracts": "node scripts/qa/check-contract-registration.mjs --root=. --milestone=M2",
+    "check:render": "node scripts/qa/check-render-headers.mjs --allow-missing-sw"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -39,6 +43,6 @@
     "vitest": "^4.1.12"
   },
   "config": {
-    "milestone": "M1"
+    "milestone": "M2"
   }
 }

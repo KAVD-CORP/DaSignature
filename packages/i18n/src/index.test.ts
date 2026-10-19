@@ -22,6 +22,7 @@ describe('@dasignature/i18n', () => {
 
 describe('matchesConfirmWord (D9)', () => {
   const de: Messages = {
+    ...en,
     settings: { clearData: { ...en.settings.clearData, confirmWord: 'LÖSCHEN' } },
   };
   it('is case-insensitive and ignores surrounding whitespace', () => {
@@ -33,5 +34,12 @@ describe('matchesConfirmWord (D9)', () => {
     expect(matchesConfirmWord('löschen', 'de', de)).toBe(true);
     expect(matchesConfirmWord('loschen', 'de', de)).toBe(false);
     expect(matchesConfirmWord('DELETE', 'de', de)).toBe(true);
+  });
+});
+
+describe('storage messages (PM #69)', () => {
+  it('has the update-required copy that storage errors map to', () => {
+    expect(t('storage.updateRequired.database')).toMatch(/Update DaSignature/);
+    expect(t('storage.updateRequired.backup')).toMatch(/Update DaSignature/);
   });
 });

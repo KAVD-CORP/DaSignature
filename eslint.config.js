@@ -26,6 +26,8 @@ export default tseslint.config(
       'apps/desktop/src-tauri/gen/**',
       'apps/mobile/android/**',
       'apps/mobile/ios/**',
+      // Vendored verbatim from QA (scripts/qa/README.md); not edited here.
+      'scripts/qa/*.mjs',
     ],
   },
   js.configs.recommended,
@@ -65,6 +67,47 @@ export default tseslint.config(
           ],
         },
       ],
+    },
+  },
+  {
+    // QA M2 row 5/ENC: test-only hooks (raw stored bytes, data-key export) live in packages/storage/test.
+    // Shipped storage code may never import them. Repeats the platform-SDK ban (rule options don't merge).
+    files: ['packages/storage/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@capacitor/*', '@capacitor-community/*', '@tauri-apps/*'],
+              message:
+                'Platform SDKs are only used inside platform adapters (StorageAdapter, FileAdapter, ...), never from UI/core.',
+            },
+            {
+              group: ['**/test/**', '**/harness/**', '**/qa-harness*', '**/fakes*'],
+              message:
+                'Test-only hooks and fakes must not be reachable from production storage code.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        ...restrictedSyntax,
+        {
+          selector: "MemberExpression[property.name='exportKey']",
+          message: 'Keys are never exported in production code (test hook only).',
+        },
+      ],
+    },
+  },
+  {
+    // QA's contract suites are copied verbatim (qa/contract/storage); M2 row 2 requires them byte-identical.
+    files: ['packages/storage/test/qa/**'],
+    extends: [tseslint.configs.disableTypeChecked],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
     },
   },
   {

@@ -32,10 +32,14 @@ jobs:
         run: pnpm lint
       - name: Typecheck
         run: pnpm typecheck
-      - name: Test
+      - name: Test (includes QA check-dasig-manifest on a fresh .dasig)
         run: pnpm test
+      - name: Storage contract registration (QA ADP-REG-01)
+        run: pnpm check:contracts
       - name: Build
         run: pnpm build
+      - name: Render headers (QA RENDER-01, PM #62; sw.js arrives in M8)
+        run: pnpm check:render
       - name: Size budget (web initial JS < 250 KiB gzip)
         run: pnpm size
       - name: License allowlist (PM decision 21)
@@ -46,6 +50,8 @@ jobs:
         run: pnpm --filter @dasignature/web exec playwright install --with-deps chromium
       - name: E2E (zero outbound requests, tokens, theming, axe)
         run: pnpm test:e2e
+      - name: Storage in Chromium (web adapter on OPFS, QA contracts, PERSIST-01 relaunch)
+        run: pnpm test:browser
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist
@@ -121,6 +127,11 @@ jobs:
           workspaces: apps/desktop/src-tauri
       - name: Install
         run: pnpm install --frozen-lockfile
+      - name: Rust tests (SQLCipher storage, ENC-01)
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --locked
+      - name: Contract suites against the real SQLCipher backend (sqlcipher mode)
+        run: pnpm test:native
       - name: Build (web build runs as Tauri beforeBuildCommand)
         run: pnpm --filter @dasignature/desktop build:native --debug
       - name: Report bundle sizes
