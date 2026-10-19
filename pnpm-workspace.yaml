@@ -5,11 +5,11 @@ packages:
 onlyBuiltDependencies:
   - esbuild
 
-# PM decision #21: CI fails on high/critical advisories. Exceptions must be approved by PM and
-# logged in docs/decisions.md.
+# PM decision #21: CI fails on high/critical advisories. Every ignore must be approved by PM,
+# documented with a reason and an expiry milestone in audit-exceptions.json, and logged in
+# docs/decisions.md. `pnpm check:audit` (scripts/check-audit.mjs) fails on an undocumented or
+# expired ignore; pnpm itself has no expiry support.
 auditConfig:
   ignoreGhsas:
-    # braces <=3.0.3 (no patched release exists). Dev-only, via tailwindcss v3 -> chokidar.
-    # Build-time stack exhaustion on attacker-supplied brace patterns; our patterns are the
-    # fixed Tailwind content globs. Not shipped. PENDING PM APPROVAL (see decisions.md).
+    # braces <=3.0.3: approved PM #54, expires at M9 (see audit-exceptions.json).
     - GHSA-vfj7-8cjw-p6xm

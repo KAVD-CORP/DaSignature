@@ -20,7 +20,7 @@
     "lint:pairings": "node scripts/lint-pairings.mjs apps/web/src packages/ui/src",
     "lint:tokens": "node scripts/check-design-tokens.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",
-    "check:audit": "pnpm audit --audit-level high",
+    "check:audit": "node scripts/check-audit.mjs",
     "test:e2e": "pnpm --filter @dasignature/web test:e2e"
   },
   "devDependencies": {
@@ -37,5 +37,8 @@
     "typescript-eslint": "^8.46.0",
     "vite": "^6.4.4",
     "vitest": "^4.1.12"
+  },
+  "config": {
+    "milestone": "M1"
   }
 }

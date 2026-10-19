@@ -1,0 +1,16 @@
+{
+  "$comment": "Approved pnpm audit ignores (PM #21, #54). Each entry must match an auditConfig.ignoreGhsas id in pnpm-workspace.yaml. scripts/check-audit.mjs fails once package.json config.milestone reaches expiresAt, and warns one milestone before.",
+  "exceptions": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces <=3.0.3",
+      "severity": "high",
+      "path": "tailwindcss@3 -> chokidar -> anymatch/micromatch -> braces (devDependency only)",
+      "reason": "Build-time stack exhaustion on attacker-supplied brace patterns. Our only patterns are the fixed Tailwind content globs, nothing from it ships in the bundle, and no patched release exists.",
+      "approved": "PM #54",
+      "dateApproved": "2026-10-19",
+      "expiresAt": "M9",
+      "action": "Before M9: migrate to Tailwind v4 (Designer ships theme.css) or take a patched braces release, then remove this entry and the ignoreGhsas line."
+    }
+  ]
+}

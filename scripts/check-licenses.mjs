@@ -19,12 +19,18 @@ export const ALLOWLIST = new Set([
   'CC0-1.0',
   'Zlib',
   'BlueOak-1.0.0',
+  'MIT-0', // PM #55: added to the allowlist (MIT without the attribution clause)
 ]);
 
-/** Dev-only exceptions: license -> reason. PENDING PM APPROVAL (decisions.md E-2). */
+/**
+ * Build-only exceptions: license -> reason. Approved by PM #55 (decisions.md E-3). Allowed only for
+ * packages that are not in the production dependency tree; a shipped package under one fails.
+ */
 export const DEV_EXCEPTIONS = new Map([
-  ['MIT-0', 'MIT without the attribution clause (strictly more permissive than MIT).'],
-  ['CC-BY-4.0', 'caniuse-lite browser data used by autoprefixer at build time; not shipped.'],
+  [
+    'CC-BY-4.0',
+    'PM #55: caniuse-lite browser data used by autoprefixer at build time; not shipped. If any of this data ever ships, add its attribution to the third-party notices.',
+  ],
 ]);
 
 /** SPDX expression check: OR needs one allowed operand, AND needs all. */
@@ -105,7 +111,7 @@ console.log(
     .join('\n'),
 );
 if (exceptions.length)
-  console.log(`Dev-only exceptions (PM approval pending):\n  ${exceptions.join('\n  ')}`);
+  console.log(`Build-only licence exceptions (approved, PM #55):\n  ${exceptions.join('\n  ')}`);
 if (failures.length) {
   console.error(`FAIL: licenses not on the allowlist (PM #21):\n  ${failures.join('\n  ')}`);
   process.exit(1);
