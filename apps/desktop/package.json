@@ -1,0 +1,20 @@
+{
+  "name": "@dasignature/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DaSignature desktop shell (Tauri 2). Wraps the apps/web build.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build:native": "tauri build",
+    "check:native": "cargo check --manifest-path src-tauri/Cargo.toml"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.0",
+    "@types/node": "^20.19.0"
+  }
+}

@@ -1,0 +1,12 @@
+@import '@fontsource-variable/inter/index.css';
+@import '@dasignature/ui/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-h-dvh;
+  }
+}

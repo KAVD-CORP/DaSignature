@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Lint, typecheck, test, build (web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Lint (eslint . --max-warnings 0, Prettier, token pipeline + check_contrast.py, pairing lint)
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+      - name: Size budget (web initial JS < 250 KiB gzip)
+        run: pnpm size
+      - name: License allowlist (PM decision 21)
+        run: pnpm check:licenses
+      - name: Audit (fail on high/critical, PM decision 21)
+        run: pnpm check:audit
+      - name: Install Playwright Chromium
+        run: pnpm --filter @dasignature/web exec playwright install --with-deps chromium
+      - name: E2E (zero outbound requests, tokens, theming, axe)
+        run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+          retention-days: 7
+
+  android:
+    name: Android shell (Capacitor, debug APK)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build web and sync into the Android project
+        run: pnpm --filter @dasignature/mobile sync:android
+      - name: Assemble debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: Report APK size
+        run: ls -l apps/mobile/android/app/build/outputs/apk/debug/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: apps/mobile/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+  ios:
+    name: iOS shell (Capacitor, simulator build)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build web and sync into the iOS project (runs pod install)
+        run: pnpm --filter @dasignature/mobile sync:ios
+      - name: Build for the iOS simulator
+        run: >
+          xcodebuild -workspace apps/mobile/ios/App/App.xcworkspace -scheme App
+          -sdk iphonesimulator -configuration Debug -derivedDataPath /tmp/ios
+          build CODE_SIGNING_ALLOWED=NO
+
+  desktop:
+    name: Desktop shell (Tauri 2, Linux debug bundle)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf file
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build (web build runs as Tauri beforeBuildCommand)
+        run: pnpm --filter @dasignature/desktop build:native --debug
+      - name: Report bundle sizes
+        run: find apps/desktop/src-tauri/target/debug/bundle -maxdepth 2 -type f -exec ls -l {} \;

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="DaSignature logo">
+  <title>DaSignature</title>
+  <rect width="512" height="512" fill="#141A3C"/>
+  <g transform="translate(256 256) rotate(34) scale(0.9) translate(-256 -256)">
+    <!-- feather vane: long, slim, asymmetric, pointed tip -->
+    <path d="M268 6 C346 70 352 196 270 302 L256 310 L244 302 C190 236 186 100 268 6 Z" fill="#F6F3EC"/>
+    <!-- feather split notch -->
+    <path d="M338 128 L292 150 L336 154 Z" fill="#141A3C"/>
+    <!-- rachis -->
+    <path d="M262 30 Q256 170 256 304" stroke="#141A3C" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <!-- barbs, all swept toward the tip -->
+    <path d="M257 262 L318 226 M257 222 L330 186 M257 182 L324 132 M257 142 L316 98 M257 102 L296 62
+             M257 262 L206 232 M257 222 L200 184 M257 182 L204 130 M257 142 L216 86"
+          stroke="#141A3C" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <!-- calligraphy nib -->
+    <path d="M222 300 H290 C290 340 282 372 266 398 L256 418 L246 398 C230 372 222 340 222 300 Z" fill="#E8B04A"/>
+    <circle cx="256" cy="334" r="8" fill="#141A3C"/>
+    <path d="M256 342 L256 414" stroke="#141A3C" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <!-- signature stroke -->
+  <path d="M150 428 C196 446 236 408 282 424 S350 430 372 416" stroke="#E8B04A" stroke-width="7" stroke-linecap="round" fill="none"/>
+</svg>

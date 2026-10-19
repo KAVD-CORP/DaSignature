@@ -1,0 +1,15 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - esbuild
+
+# PM decision #21: CI fails on high/critical advisories. Exceptions must be approved by PM and
+# logged in docs/decisions.md.
+auditConfig:
+  ignoreGhsas:
+    # braces <=3.0.3 (no patched release exists). Dev-only, via tailwindcss v3 -> chokidar.
+    # Build-time stack exhaustion on attacker-supplied brace patterns; our patterns are the
+    # fixed Tailwind content globs. Not shipped. PENDING PM APPROVAL (see decisions.md).
+    - GHSA-vfj7-8cjw-p6xm

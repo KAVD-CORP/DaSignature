@@ -1,0 +1,25 @@
+[package]
+name = "dasignature"
+version = "0.1.0"
+description = "DaSignature desktop shell"
+license = "Apache-2.0"
+edition = "2021"
+rust-version = "1.90"
+
+[lib]
+name = "dasignature_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[profile.release]
+# Size budget: desktop installer < 20 MB (SPEC Sec 1).
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

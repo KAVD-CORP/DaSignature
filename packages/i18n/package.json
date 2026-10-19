@@ -1,0 +1,15 @@
+{
+  "name": "@dasignature/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Internationalization: messages, locale and RTL helpers.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}

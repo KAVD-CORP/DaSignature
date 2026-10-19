@@ -1,0 +1,8 @@
+[
+  {
+    "name": "web initial JS (index.html entry + shared chunk, gzip) - SPEC Sec 1 / PM #2, #3",
+    "path": ["apps/web/dist/assets/main-*.js", "apps/web/dist/assets/index-*.js"],
+    "limit": "250 KiB",
+    "gzip": true
+  }
+]

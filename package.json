@@ -1,0 +1,41 @@
+{
+  "name": "dasignature",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DaSignature: a private, local-first, open-source PDF signing app.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @dasignature/web dev",
+    "lint": "eslint . --max-warnings 0 && prettier --check . && pnpm lint:tokens && pnpm lint:pairings",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r --no-bail typecheck",
+    "test": "pnpm -r test && vitest run --dir scripts",
+    "build": "pnpm -r build",
+    "size": "size-limit && node scripts/check-size.mjs",
+    "lint:pairings": "node scripts/lint-pairings.mjs apps/web/src packages/ui/src",
+    "lint:tokens": "node scripts/check-design-tokens.mjs",
+    "check:licenses": "node scripts/check-licenses.mjs",
+    "check:audit": "pnpm audit --audit-level high",
+    "test:e2e": "pnpm --filter @dasignature/web test:e2e"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@size-limit/file": "^11.2.0",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.0.0",
+    "prettier": "^3.6.0",
+    "size-limit": "^11.2.0",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vite": "^6.4.4",
+    "vitest": "^4.1.12"
+  }
+}
