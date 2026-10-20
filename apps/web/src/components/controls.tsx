@@ -91,33 +91,44 @@ export function Slider({
 
 export function Switch({
   label,
+  description,
   checked,
   onChange,
 }: {
   label: string;
+  description?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
+  const id = useId();
   return (
-    <label className="flex min-h-touch cursor-pointer items-center justify-between gap-3 text-body-sm font-medium text-text">
-      {label}
-      <button
-        type="button"
-        role="switch"
-        data-ui-state="switch"
-        aria-checked={checked}
-        aria-label={label}
-        onClick={() => {
-          onChange(!checked);
-        }}
-        className={`relative h-[26px] w-[44px] shrink-0 rounded-pill border transition-colors duration-fast ${checked ? 'border-primary bg-primary' : 'border-border-strong bg-surface-2'}`}
-      >
-        <span
-          aria-hidden
-          className={`absolute top-[3px] h-[18px] w-[18px] rounded-full transition-[left] duration-fast ${checked ? 'left-[21px] bg-on-primary' : 'left-[3px] bg-text-muted'}`}
-        />
-      </button>
-    </label>
+    <div className="flex flex-col gap-0.5">
+      <label className="flex min-h-touch cursor-pointer items-center justify-between gap-3 text-body-sm font-medium text-text">
+        {label}
+        <button
+          type="button"
+          role="switch"
+          data-ui-state="switch"
+          aria-checked={checked}
+          aria-label={label}
+          aria-describedby={description ? id : undefined}
+          onClick={() => {
+            onChange(!checked);
+          }}
+          className={`relative h-[26px] w-[44px] shrink-0 rounded-pill border transition-colors duration-fast ${checked ? 'border-primary bg-primary' : 'border-border-strong bg-surface-2'}`}
+        >
+          <span
+            aria-hidden
+            className={`absolute top-[3px] h-[18px] w-[18px] rounded-full transition-[left] duration-fast ${checked ? 'left-[21px] bg-on-primary' : 'left-[3px] bg-text-muted'}`}
+          />
+        </button>
+      </label>
+      {description ? (
+        <p id={id} className="text-caption text-text-muted">
+          {description}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

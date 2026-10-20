@@ -48,7 +48,17 @@ export interface OpenedPdf {
   encrypted: boolean;
   /** The password that worked, kept in memory for this session only. */
   password: string | undefined;
+  /** Export notice cases (design copy/export-password-notice.md). */
+  protection: Protection;
 }
+
+export interface Protection {
+  openPassword: boolean;
+  restricted: boolean;
+  encrypted: boolean;
+}
+
+const ALL_PERMISSIONS = [4, 8, 16, 32, 256, 512, 1024, 2048];
 
 export interface OpenHandle {
   promise: Promise<OpenedPdf>;
@@ -93,7 +103,15 @@ export function openPdf(
     try {
       const doc = await task.promise;
       const encrypted = await isEncrypted(doc);
-      return { doc, encrypted, password: used };
+      let restricted = false;
+      try {
+        const perms = await doc.getPermissions();
+        restricted = perms !== null && ALL_PERMISSIONS.some((f) => !perms.includes(f));
+      } catch {
+        /* treat as unrestricted */
+      }
+      const protection = { openPassword: !!used, restricted, encrypted: encrypted || !!used };
+      return { doc, encrypted: protection.encrypted, password: used, protection };
     } catch (err) {
       if (stopped()) throw new PdfImportError('password-cancelled', 'cancelled');
       if (err instanceof Error && err.name === 'PasswordException')

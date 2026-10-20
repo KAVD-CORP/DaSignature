@@ -382,6 +382,16 @@ export class DataStore {
       documentId,
     ]);
   }
+  /** Integrity check: an export with exactly this SHA-256, with its document title. */
+  async findExportBySha256(
+    sha256: string,
+  ): Promise<{ export: ExportRecord; title: string | undefined } | undefined> {
+    const [exp] = await this.select<ExportRecord>('exports', 'WHERE sha256 = ? LIMIT 1', [
+      sha256.toLowerCase(),
+    ]);
+    if (!exp) return undefined;
+    return { export: exp, title: (await this.getDocument(exp.document_id))?.title };
+  }
   async getExportPdf(rec: Pick<ExportRecord, 'id' | 'file_ref'>): Promise<Uint8Array> {
     return this.getSealedFile('exports', rec.id, rec.file_ref);
   }

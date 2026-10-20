@@ -13,7 +13,7 @@ import {
   type FieldType,
 } from '@dasignature/core';
 import { t } from '@dasignature/i18n';
-import { openPdf, pageSize, type PDFDocumentProxy } from '@dasignature/pdf/render';
+import { openPdf, pageSize, type PDFDocumentProxy, type Protection } from '@dasignature/pdf/render';
 import type { DocumentRecord, SignatureRecord } from '@dasignature/storage';
 import { Button, IconButton, Modal, Spinner } from '../components/ui.tsx';
 import {
@@ -29,6 +29,7 @@ import { FIELD_LABEL, PlacementLayer, textWidthPt } from '../components/Placemen
 import { signatureImageUrl } from '../components/SignaturePreview.tsx';
 import { placements, usePlacements } from '../state/placements.ts';
 import { useSignatures } from './Signatures.tsx';
+import { ExportSheet } from '../components/ExportSheet.tsx';
 import {
   PAD,
   PX_PER_PT,
@@ -49,6 +50,9 @@ export interface LoadedDoc {
   pdf: PDFDocumentProxy;
   bytes: Uint8Array;
   encrypted: boolean;
+  password: string | undefined;
+  protection: Protection;
+  hasForm: boolean;
   sizes: PageSize[];
 }
 
@@ -77,7 +81,18 @@ export function useLoadedDoc(docId: string) {
         session.rememberPassword(docId, opened.password);
         const first = pageSize(await pdf.getPage(1));
         const sizes = Array.from({ length: pdf.numPages }, () => first);
-        setDoc({ rec, pdf, bytes, encrypted: opened.encrypted, sizes });
+        const fields = await pdf.getFieldObjects().catch(() => null);
+        if (!alive()) return;
+        setDoc({
+          rec,
+          pdf,
+          bytes,
+          encrypted: opened.encrypted,
+          password: opened.password,
+          protection: opened.protection,
+          hasForm: !!fields && Object.keys(fields).length > 0,
+          sizes,
+        });
         // Real sizes in the background (mixed page sizes are common).
         const real: PageSize[] = [first];
         for (let i = 2; i <= pdf.numPages && alive(); i++)
@@ -340,7 +355,7 @@ export function PeekPill({
       type="button"
       onClick={onClick}
       aria-label={t('viewer.expandPages')}
-      className="absolute bottom-4 left-1/2 z-10 min-h-target -translate-x-1/2 rounded-pill border border-border bg-surface px-4 text-body-sm font-medium text-text shadow-float tablet:hidden"
+      className="absolute bottom-4 left-4 z-10 min-h-target rounded-pill border border-border bg-surface px-4 text-body-sm font-medium text-text shadow-float tablet:hidden"
     >
       {t('viewer.pageShort', { page: String(current + 1), count: String(count) })}
     </button>
@@ -573,6 +588,28 @@ export default function Editor({ docId }: { docId: string }) {
   const services = useApp((s) => s.services);
   const ed = usePlacementEditor(doc, current);
   const { sigMap, place, setMore } = ed;
+  const [exporting, setExporting] = useState(false);
+  const items = usePlacements((s) => s.items);
+  const openExport = useCallback(() => {
+    void placements.flush();
+    if (usePlacements.getState().items.length === 0) {
+      useApp.getState().showToast({ text: t('export.nothingPlaced') });
+      return;
+    }
+    setExporting(true);
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        openExport();
+      }
+    };
+    addEventListener('keydown', onKey);
+    return () => {
+      removeEventListener('keydown', onKey);
+    };
+  }, [openExport]);
   const overlay = useCallback(
     (index: number, size: PageSize, sc: number) => (
       <PlacementLayer
@@ -622,6 +659,14 @@ export default function Editor({ docId }: { docId: string }) {
         <div className="hidden tablet:block">
           <PageJump current={current} count={doc.sizes.length} onJump={jump} />
         </div>
+        <Button
+          variant="primary"
+          className="ml-2 hidden tablet:inline-flex"
+          title={t('editor.exportShortcut')}
+          onClick={openExport}
+        >
+          {t('editor.export')}
+        </Button>
       </TopBar>
       <div className="relative flex min-h-0 flex-1">
         <ThumbPane doc={doc} current={current} jump={jump} open={thumbs} setOpen={setThumbs} />
@@ -659,7 +704,32 @@ export default function Editor({ docId }: { docId: string }) {
           }}
         />
       </div>
+      <div className="relative tablet:hidden">
+        <Button
+          variant="primary"
+          pill
+          className="absolute -top-14 left-1/2 z-10 -translate-x-1/2 shadow-float"
+          onClick={openExport}
+        >
+          {t('editor.export')}
+        </Button>
+      </div>
       <PhoneDock onPick={ed.pick} />
+      {exporting ? (
+        <ExportSheet
+          open
+          onClose={() => {
+            setExporting(false);
+          }}
+          rec={doc.rec}
+          original={doc.bytes}
+          password={doc.password}
+          protection={doc.protection}
+          hasForm={doc.hasForm}
+          items={items}
+          sigs={sigMap}
+        />
+      ) : null}
       <LiveRegion />
       <Modal
         open={ed.more}

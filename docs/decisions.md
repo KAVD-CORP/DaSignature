@@ -192,3 +192,16 @@ These two PM decisions knowingly differ from the spec text. They are recorded he
 | E-69 | Placing uses `click`, not `pointerdown`, so a touch scroll never drops a field. When a tool button is activated from the keyboard, the field is placed in the middle of the current page and focused (the non-pointer path). | Design 03 a11y. |
 | E-70 | The page `role=img` moved to an inner wrapper so placements (`role=group`) stay in the a11y tree. The selection uses `.ds-selection` with `data-ui-state="selection"`; handles use `.ds-selection-handle` with `data-ui-state="handle"`; layers have `data-qa-backdrop="#FFFFFF"`. | QA markers. |
 | E-71 | Text fields use Inter at 0.75 × the field height, and the width auto-fits the text. Export uses the same ratio, with glyph outlines. The rotation slider has no snapping (the rotate handle snaps at right angles; Alt turns it off). | Consistency. |
+
+### M6 Export
+
+| ID | Decision | Why |
+|---|---|---|
+| E-72 | Replaced `pdf-lib` with its maintained MIT fork `@cantoo/pdf-lib`, which can decrypt (user or owner password, incl. AES-256). PM #24/#45 say the copy carries no encryption: we remove the /Encrypt dictionary, old xref and object streams, and unparsed leftovers. | pdf-lib can't read encrypted PDFs. |
+| E-73 | Every placement is exported as vector paths. Signatures are one fill per signature, with group opacity via ExtGState `/ca`. Text, date and name fields are Inter glyph outlines (latin, latin-ext, cyrillic, greek subsets, with per-character fallback), so no font is embedded. Checkboxes are stroked paths. Image signatures use embedPng. A display→user matrix handles the CropBox and /Rotate 0/90/180/270. | Spec 7.5; crisp at 800 %. |
+| E-74 | The export runs in a module Web Worker (`export.worker.ts`). Stop terminates the worker. The export chunk (251 KB gz) loads only in the worker. | Design 06: the UI never freezes. |
+| E-75 | The in-PDF audit trail is the Info key `DaSignatureTrail` (JSON: entries of signer, ISO time with offset, source SHA-256, app, platform), and each export appends one entry. The optional audit page lists all entries as outlined text. There is no location or IP. | Spec 3.2 multi-signer. |
+| E-76 | Integrity check (Settings): the file's SHA-256 is looked up in this device's exports table (exact copy or not), and the embedded trail is shown. A file can't contain its own hash, so verification is against local records. | Simplest honest check. |
+| E-77 | The export file name counter replays `signedFileName` over the number of earlier exports, because the exports table has no name column. Names the user edited aren't tracked. | No schema change. |
+| E-78 | The protection notice case comes from pdf.js at open time: openPassword (a password was used), restricted (getPermissions is missing any flag), encrypted. The copy follows copy/export-password-notice.md exactly. | PM #45/#53/#58. |
+| E-79 | Web Share with files is used when `navigator.canShare` supports it. Otherwise Save is a download. Native save and share adapters come in M8. | Platform split. |

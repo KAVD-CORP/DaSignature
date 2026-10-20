@@ -11,5 +11,12 @@ export async function memoryServices(): Promise<Services> {
   const db = new MemoryStorageAdapter();
   await db.init({});
   const store = await DataStore.open(db, new Vault(key));
-  return { kind: 'web', store, lock: undefined, files: webFiles(), persist: undefined };
+  return {
+    kind: 'web',
+    store,
+    lock: undefined,
+    files: webFiles(),
+    share: undefined,
+    persist: undefined,
+  };
 }

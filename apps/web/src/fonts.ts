@@ -2,6 +2,10 @@
  * Bundled script fonts for typed signatures (SPEC Sec 7.3). Latin subsets, weight 400, served
  * same-origin as hashed assets; licences in THIRD_PARTY_NOTICES (OFL-1.1, two Apache-2.0).
  */
+import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+import interLatinExt from '@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2?url';
+import interCyrillic from '@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2?url';
+import interGreek from '@fontsource-variable/inter/files/inter-greek-wght-normal.woff2?url';
 import alexBrush from '@fontsource/alex-brush/files/alex-brush-latin-400-normal.woff2?url';
 import allura from '@fontsource/allura/files/allura-latin-400-normal.woff2?url';
 import caveat from '@fontsource/caveat/files/caveat-latin-400-normal.woff2?url';
@@ -50,4 +54,13 @@ export function loadScriptFont(f: ScriptFont): Promise<void> {
 
 export async function fontBytes(f: ScriptFont): Promise<Uint8Array> {
   return new Uint8Array(await (await fetch(f.url)).arrayBuffer());
+}
+
+/** Inter subsets for text fields and the audit page on export (outlined, never embedded). */
+const TEXT_FONT_URLS = [interLatin, interLatinExt, interCyrillic, interGreek];
+
+export async function textFontBytes(): Promise<Uint8Array[]> {
+  return Promise.all(
+    TEXT_FONT_URLS.map(async (u) => new Uint8Array(await (await fetch(u)).arrayBuffer())),
+  );
 }

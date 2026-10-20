@@ -73,3 +73,71 @@ export function textToVector(
     .join('');
   return { d, width: r(Math.max(...xs) - ox + pad), height: r(Math.max(...ys) - oy + pad) };
 }
+
+interface LineFont extends FontLike {
+  descent: number;
+  hasGlyphForCodePoint: (cp: number) => boolean;
+}
+
+const fontCache = new WeakMap<Uint8Array, LineFont>();
+function open(bytes: Uint8Array): LineFont {
+  let f = fontCache.get(bytes);
+  if (!f) {
+    f = (fontkit.create as unknown as (b: Uint8Array) => LineFont)(bytes);
+    fontCache.set(bytes, f);
+  }
+  return f;
+}
+
+/**
+ * One line of text as a path in a field box `hPt` tall (y down, points), laid out the way the
+ * editor's CSS does: glyph size `ratio` × h, left padding `padRatio` × h, baseline from the first
+ * font's ascent/descent centred in the line box. Characters missing from the first font fall back
+ * to the next font that has them.
+ */
+export function textLine(
+  fonts: readonly Uint8Array[],
+  text: string,
+  hPt: number,
+  ratio = 0.75,
+  padRatio = 0.15,
+): { d: string; width: number } {
+  const opened = fonts.map(open);
+  const main = opened[0];
+  if (!main) return { d: '', width: 0 };
+  const fs = hPt * ratio;
+  const k0 = fs / main.unitsPerEm;
+  const content = (main.ascent - main.descent) * k0;
+  const baseline = (hPt - content) / 2 + main.ascent * k0;
+  // Runs of characters by covering font.
+  const runs: { font: LineFont; text: string }[] = [];
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0;
+    const font = opened.find((f) => f.hasGlyphForCodePoint(cp)) ?? main;
+    const last = runs[runs.length - 1];
+    if (last?.font === font) last.text += ch;
+    else runs.push({ font, text: ch });
+  }
+  let pen = hPt * padRatio;
+  let d = '';
+  for (const { font, text: part } of runs) {
+    const k = fs / font.unitsPerEm;
+    const run = font.layout(part);
+    run.glyphs.forEach((g, i) => {
+      const pos = run.positions[i] ?? { xAdvance: 0, xOffset: 0, yOffset: 0 };
+      for (const c of g.path.commands) {
+        d += LETTER[c.command];
+        const pts: string[] = [];
+        for (let j = 0; j + 1 < c.args.length; j += 2)
+          pts.push(
+            `${String(r(pen + (pos.xOffset + (c.args[j] ?? 0)) * k))},${String(
+              r(baseline - (pos.yOffset + (c.args[j + 1] ?? 0)) * k),
+            )}`,
+          );
+        d += pts.join(' ');
+      }
+      pen += pos.xAdvance * k;
+    });
+  }
+  return { d, width: r(pen + hPt * padRatio) };
+}

@@ -1,6 +1,7 @@
 import { t } from '@dasignature/i18n';
 import { THEME_PREFERENCES, type ThemePreference } from '@dasignature/ui';
 import { useThemeStore } from '../state/theme.ts';
+import { IntegrityCheck } from '../components/IntegrityCheck.tsx';
 
 const THEME_LABELS: Record<ThemePreference, string> = {
   system: 'System',
@@ -42,6 +43,15 @@ export function Settings() {
             </button>
           ))}
         </div>
+      </section>
+      <section aria-labelledby="integrity" className="flex flex-col gap-2">
+        <h2
+          id="integrity"
+          className="text-caption font-semibold uppercase tracking-[0.04em] text-text-muted"
+        >
+          {t('integrity.title')}
+        </h2>
+        <IntegrityCheck />
       </section>
     </main>
   );

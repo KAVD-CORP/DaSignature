@@ -14,11 +14,12 @@ import {
   WebStorageAdapter,
   requestPersistentStorage,
   type FileAdapter,
+  type ShareAdapter,
   type StorageAdapter,
   type TauriInvoke,
   type VaultSource,
 } from '@dasignature/storage';
-import { webFiles } from './files.ts';
+import { webFiles, webShare } from './files.ts';
 
 export type PlatformKind = 'web' | 'desktop' | 'mobile';
 
@@ -28,6 +29,8 @@ export interface Services {
   /** Present on web: the passcode-capable lock. Native locks are M7 (biometric gate). */
   lock: AppLock | undefined;
   files: FileAdapter;
+  /** OS share sheet (Web Share with files where supported). */
+  share: ShareAdapter | undefined;
   /** Web only: asks the browser not to evict storage (SPEC Sec 6). */
   persist: (() => Promise<boolean>) | undefined;
 }
@@ -59,7 +62,14 @@ export const createServices: ServiceFactory = async () => {
     if (!invoke) throw new Error('Tauri bridge missing');
     const vault = await new NativeKeyManager(new TauriSecureKeyStore(invoke)).unlock();
     const store = await open(new TauriStorageAdapter(invoke), { vault: () => vault });
-    return { kind, store, lock: undefined, files: webFiles(), persist: undefined };
+    return {
+      kind,
+      store,
+      lock: undefined,
+      files: webFiles(),
+      share: webShare(),
+      persist: undefined,
+    };
   }
   if (kind === 'mobile') {
     const { createMobileServices } = await import('./mobile.ts');
@@ -68,5 +78,12 @@ export const createServices: ServiceFactory = async () => {
   const lock = new AppLock(new WebKeyManager(new IdbKeyValueStore()));
   await lock.resume();
   const store = await open(new WebStorageAdapter(), lock);
-  return { kind, store, lock, files: webFiles(), persist: requestPersistentStorage };
+  return {
+    kind,
+    store,
+    lock,
+    files: webFiles(),
+    share: webShare(),
+    persist: requestPersistentStorage,
+  };
 };
