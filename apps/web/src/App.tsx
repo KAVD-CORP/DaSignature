@@ -4,7 +4,8 @@ import { applyTheme } from '@dasignature/ui';
 import { GlobalDialogs } from './components/GlobalDialogs.tsx';
 import { Shell } from './components/Shell.tsx';
 import { Button, Spinner, ToastHost } from './components/ui.tsx';
-import { Library } from './screens/Library.tsx';
+import { Library, openFiles, openPicker } from './screens/Library.tsx';
+import { installInbound } from './services/inbound.ts';
 import { Settings } from './screens/Settings.tsx';
 import { Signatures } from './screens/Signatures.tsx';
 import { createServices, type ServiceFactory } from './services/platform.ts';
@@ -124,6 +125,16 @@ export function App({ factory }: { factory?: ServiceFactory }) {
     void boot(factory);
   }, [factory]);
   useEffect(() => installAutoLock(), []);
+  useEffect(
+    () =>
+      status === 'ready'
+        ? installInbound(
+            (files) => void openFiles(files),
+            () => void openPicker(),
+          )
+        : undefined,
+    [status],
+  );
 
   if (status === 'booting')
     return (

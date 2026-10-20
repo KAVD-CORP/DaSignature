@@ -30,8 +30,11 @@ export {
   TauriSecureKeyStore,
   TauriStorageAdapter,
   TAURI_COMMANDS,
+  encodeValue,
+  decodeValue,
   type TauriInvoke,
 } from './adapters/tauri.ts';
+export { toBase64, fromBase64 } from './bytes.ts';
 export { Vault, IV_BYTES, TAG_BYTES } from './crypto/vault.ts';
 export { ARGON2ID, PBKDF2_ITERATIONS, newKdfParams, type KdfParams } from './crypto/kdf.ts';
 export {

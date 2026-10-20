@@ -605,9 +605,14 @@ export default function Editor({ docId }: { docId: string }) {
         openExport();
       }
     };
+    const onMenu = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === 'export') openExport();
+    };
     addEventListener('keydown', onKey);
+    addEventListener('dasig-menu', onMenu);
     return () => {
       removeEventListener('keydown', onKey);
+      removeEventListener('dasig-menu', onMenu);
     };
   }, [openExport]);
   const overlay = useCallback(

@@ -1,5 +1,5 @@
 # Render Blueprint: DaSignature web/PWA as a Render Static Site (PM #62).
-# Skeleton at M2; the step-by-step guide (docs/deploy-render.md) lands with M8.
+# Step-by-step guide: docs/deploy-render.md. Node comes from .node-version (20.19).
 # Headers: CSP per PM #1 (same string as apps/web/csp.ts), Referrer-Policy, nosniff, Permissions-Policy
 # camera=(self); caching per PM #23 (hashed assets immutable for 1 year, index.html and sw.js no-cache).
 # apps/web/src/render-yaml.test.ts keeps this file in sync with apps/web/csp.ts.
@@ -9,6 +9,10 @@ services:
     name: dasignature
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter web build
     staticPublishPath: apps/web/dist
+    envVars:
+      # Render would otherwise run its own npm install first; the build command installs with pnpm.
+      - key: SKIP_INSTALL_DEPS
+        value: 'true'
     headers:
       - path: /*
         name: Content-Security-Policy
@@ -37,7 +41,21 @@ services:
       - path: /manifest.webmanifest
         name: Cache-Control
         value: no-cache
+      # Deep paths (3+ segments) are either unhashed pdf.js data under /pdfjs/ or SPA rewrites to
+      # index.html; both revalidate. Hashed assets are /assets/<file> (2 segments), so the rules
+      # never overlap (Render's precedence for conflicting Cache-Control rules is undocumented).
+      - path: /*/*/*
+        name: Cache-Control
+        value: no-cache
+      - path: /doc/*
+        name: Cache-Control
+        value: no-cache
     routes:
+      # A missing hashed asset (an old index.html after a deploy) gets a tiny text/plain body, not
+      # index.html: the module load fails cleanly instead of caching HTML for a year at a .js URL.
+      - type: rewrite
+        source: /assets/*
+        destination: /missing-asset.txt
       # SPA: every path without a file is served index.html (files are matched first).
       - type: rewrite
         source: /*

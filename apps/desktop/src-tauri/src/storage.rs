@@ -103,6 +103,14 @@ impl Storage {
         };
         let conn = Connection::open(self.dir.join(DB_FILE)).map_err(err)?;
         apply_key(&conn, &key)?;
+        // Seed SQLCipher's CSPRNG (page IVs, salts) from the OS RNG. Required with the LibTomCrypt
+        // provider on Windows, whose Fortuna is otherwise seeded from SQLite's time-based
+        // randomness; harmless with OpenSSL.
+        conn.execute_batch(&format!(
+            "PRAGMA cipher_add_random = \"x'{}'\";",
+            random_key_hex()?
+        ))
+        .map_err(err)?;
         // Fails with "file is not a database" for a wrong key.
         conn.query_row("SELECT count(*) FROM sqlite_master", [], |r| {
             r.get::<_, i64>(0)

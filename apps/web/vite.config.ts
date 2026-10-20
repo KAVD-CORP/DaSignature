@@ -4,6 +4,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { CSP_META, headersFile } from './csp.ts';
+import { serviceWorker } from './pwa.ts';
 
 /**
  * Build-only: inject the Content-Security-Policy <meta> tag and emit the `_headers` file.
@@ -67,7 +68,7 @@ function pdfjsAssets(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), securityHeaders(), pdfjsAssets()],
+  plugins: [react(), securityHeaders(), pdfjsAssets(), serviceWorker()],
   build: {
     target: 'es2022',
     // Never inline assets as data: URIs; every asset is a same-origin hashed file.

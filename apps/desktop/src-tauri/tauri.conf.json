@@ -35,6 +35,28 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["pdf"],
+        "mimeType": "application/pdf",
+        "name": "PDF document",
+        "description": "PDF document",
+        "role": "Viewer"
+      }
+    ],
+    "shortDescription": "Sign PDFs privately, on your device.",
+    "longDescription": "DaSignature is a private, local-first, open-source PDF signing app. Your files never leave your device.",
+    "category": "Productivity",
+    "license": "Apache-2.0",
+    "publisher": "DaSignature contributors",
+    "linux": {
+      "deb": {
+        "section": "utils"
+      },
+      "rpm": {
+        "release": "1"
+      }
+    }
   }
 }

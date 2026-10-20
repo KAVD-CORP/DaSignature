@@ -13,6 +13,7 @@ import {
   WebKeyManager,
   WebStorageAdapter,
   requestPersistentStorage,
+  toBase64,
   type FileAdapter,
   type ShareAdapter,
   type StorageAdapter,
@@ -66,7 +67,7 @@ export const createServices: ServiceFactory = async () => {
       kind,
       store,
       lock: undefined,
-      files: webFiles(),
+      files: desktopFiles(invoke),
       share: webShare(),
       persist: undefined,
     };
@@ -75,15 +76,32 @@ export const createServices: ServiceFactory = async () => {
     const { createMobileServices } = await import('./mobile.ts');
     return createMobileServices();
   }
+  return webServices();
+};
+
+/** The browser build (also the mobile fallback when the native plugin is missing). */
+export async function webServices(): Promise<Services> {
   const lock = new AppLock(new WebKeyManager(new IdbKeyValueStore()));
   await lock.resume();
   const store = await open(new WebStorageAdapter(), lock);
   return {
-    kind,
+    kind: 'web',
     store,
     lock,
     files: webFiles(),
     share: webShare(),
     persist: requestPersistentStorage,
   };
-};
+}
+
+/** Desktop: the web picker, but exports go through the native Save dialog (shell.rs save_file). */
+function desktopFiles(invoke: TauriInvoke): FileAdapter {
+  const web = webFiles();
+  return {
+    pickPdf: () => web.pickPdf(),
+    async saveFile(name, bytes) {
+      const savedAs = (await invoke('save_file', { name, data: toBase64(bytes) })) as string | null;
+      return savedAs === null ? null : { savedAs };
+    },
+  };
+}
