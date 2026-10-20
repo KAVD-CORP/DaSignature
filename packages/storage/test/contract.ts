@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { bytesEqual, randomBytes, sha256Hex } from '../src/bytes.ts';
 import { FileNotFoundError, StorageBusyError, StorageClosedError } from '../src/errors.ts';
-import { migrate } from '../src/schema.ts';
+import { migrate, SCHEMA_VERSION } from '../src/schema.ts';
 import type { StorageAdapter } from '../src/types.ts';
 
 export interface ContractTarget {
@@ -61,8 +61,8 @@ export function runStorageContract(name: string, target: () => ContractTarget): 
       await addDoc(a, 'd1');
       await a.init({});
       expect(await count(a, 'documents')).toBe(1);
-      expect(await migrate(a)).toBe(1); // re-running migrations is a no-op
-      expect(await count(a, 'schema_migrations')).toBe(1);
+      expect(await migrate(a)).toBe(SCHEMA_VERSION); // re-running migrations is a no-op
+      expect(await count(a, 'schema_migrations')).toBe(SCHEMA_VERSION);
     });
 
     it('binds parameters (no SQL injection through values)', async () => {
@@ -206,7 +206,8 @@ export function runStorageContract(name: string, target: () => ContractTarget): 
       const a = await setup();
       const bytes = randomBytes(size);
       const ref = await a.putFile(bytes, 'contract.pdf');
-      expect(ref).toMatch(/^[0-9a-f-]{36}\.pdf$/);
+      // PM #71: an opaque id, no extension, whatever the hint says.
+      expect(ref).toMatch(/^[0-9a-f-]{36}$/);
       expect(bytesEqual(await a.getFile(ref), bytes)).toBe(true);
     });
 
@@ -232,6 +233,23 @@ export function runStorageContract(name: string, target: () => ContractTarget): 
       await expect(a.getFile('../../etc/passwd')).rejects.toThrow(/invalid file ref/);
     });
 
+    it('putFileAt writes only opaque refs (PM #71); legacy <id>.<ext> refs stay readable', async () => {
+      const a = await setup();
+      const id = '018f0000-0000-7000-8000-0000000000aa';
+      await a.putFileAt(id, new Uint8Array([7, 8]));
+      expect(bytesEqual(await a.getFile(id), new Uint8Array([7, 8]))).toBe(true);
+      await a.putFileAt(id, new Uint8Array([9])); // overwrite (idempotent migration copy)
+      expect(bytesEqual(await a.getFile(id), new Uint8Array([9]))).toBe(true);
+      for (const bad of [`${id}.pdf`, `${id}.png`, '../x', ''])
+        await expect(a.putFileAt(bad, new Uint8Array([1]))).rejects.toThrow(/opaque file ref/);
+      await a.transaction(async (tx) => {
+        await expect(tx.putFileAt(`${id}.pdf`, new Uint8Array([1]))).rejects.toThrow(
+          /opaque file ref/,
+        );
+      });
+      await expect(a.getFile(`${id}.pdf`)).rejects.toBeInstanceOf(FileNotFoundError);
+    });
+
     it('usage().used is >= 0 and grows after putFile', async () => {
       const a = await setup();
       const before = await a.usage();
@@ -250,7 +268,7 @@ export function runStorageContract(name: string, target: () => ContractTarget): 
       const b = await fresh();
       expect(await b.query('SELECT title FROM documents')).toEqual([{ title: 'Persisted' }]);
       expect(bytesEqual(await b.getFile(ref), bytes)).toBe(true);
-      expect(await count(b, 'schema_migrations')).toBe(1);
+      expect(await count(b, 'schema_migrations')).toBe(SCHEMA_VERSION);
     });
 
     it('enforces ON DELETE CASCADE and ON DELETE SET NULL', async () => {

@@ -189,7 +189,7 @@ export function migrationHarness(kit: Kit): MigrationHarness {
   };
 }
 
-async function writeFixtures(
+export async function writeFixtures(
   store: DataStore,
   variant: 'A' | 'B',
 ): Promise<{ documentId: string }> {

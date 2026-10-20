@@ -51,8 +51,9 @@ describe('ADP-SCHEMA-01 schema and migrations', () => {
     expect(mig).toHaveLength(SCHEMA_VERSION);
     expect(mig[0]?.version).toBe(1);
     expect(mig[0]?.applied_at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
-    expect(await migrate(db)).toBe(1);
-    expect(await db.query('SELECT version FROM schema_migrations')).toHaveLength(1);
+    expect(mig.map((m) => m.version)).toEqual([1, 2]);
+    expect(await migrate(db)).toBe(SCHEMA_VERSION);
+    expect(await db.query('SELECT version FROM schema_migrations')).toHaveLength(SCHEMA_VERSION);
     await db.close();
   });
 
@@ -89,6 +90,6 @@ describe('ADP-SCHEMA-01 schema and migrations', () => {
     const { doc, exp } = await seed(store);
     expect(doc.id).toMatch(UUID_V7);
     expect(exp.id).toMatch(UUID_V7);
-    expect(doc.file_ref).toMatch(new RegExp(UUID_V7.source.slice(0, -1) + '\\.pdf$'));
+    expect(doc.file_ref).toMatch(UUID_V7); // PM #71: no extension
   });
 });

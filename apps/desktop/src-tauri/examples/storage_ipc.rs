@@ -7,14 +7,37 @@
 //!
 //! Usage: storage_ipc <data-dir>. The key comes from the request (`storage_open` {key}); without
 //! one this bridge refuses to open (there is no OS credential store in CI).
+use dasignature_lib::secrets::{SecretBackend, Secrets};
 use dasignature_lib::storage::{KeySource, Result, Storage};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::io::{self, BufRead, Write};
+use std::sync::Mutex;
 
 struct NoKeyring;
 impl KeySource for NoKeyring {
     fn get_or_create(&self) -> Result<String> {
         Err("storage_ipc: pass the key to storage_open".into())
+    }
+}
+
+/// Stand-in for the OS credential store: process memory (CI has no keyring).
+#[derive(Default)]
+struct MemorySecrets(Mutex<HashMap<String, String>>);
+impl SecretBackend for MemorySecrets {
+    fn get(&self, a: &str) -> Result<Option<String>> {
+        Ok(self.0.lock().map_err(|e| e.to_string())?.get(a).cloned())
+    }
+    fn set(&self, a: &str, v: &str) -> Result<()> {
+        self.0
+            .lock()
+            .map_err(|e| e.to_string())?
+            .insert(a.into(), v.into());
+        Ok(())
+    }
+    fn delete(&self, a: &str) -> Result<()> {
+        self.0.lock().map_err(|e| e.to_string())?.remove(a);
+        Ok(())
     }
 }
 
@@ -36,6 +59,7 @@ fn main() {
         .nth(1)
         .expect("usage: storage_ipc <data-dir>");
     let st = Storage::new(dir.into(), Box::new(NoKeyring));
+    let secrets = Secrets::new(Box::new(MemorySecrets::default()));
     let stdin = io::stdin();
     let mut out = io::stdout().lock();
     for line in stdin.lock().lines() {
@@ -67,6 +91,8 @@ fn main() {
             "storage_delete_file" => st.delete_file(&s(&a, "fileRef")).map(|_| Value::Null),
             "storage_usage" => st.usage(),
             "storage_close" => st.close().map(|_| Value::Null),
+            "secure_key_get_or_create" => secrets.get_or_create(&s(&a, "name")).map(Value::String),
+            "secure_key_delete" => secrets.delete(&s(&a, "name")).map(|_| Value::Null),
             other => Err(format!("unknown command {other}")),
         };
         let resp = match r {

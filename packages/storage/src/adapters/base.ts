@@ -24,16 +24,29 @@ export interface AdapterOptions {
   lockTimeoutMs?: number;
 }
 
-const REF = /^[0-9a-f-]{36}(\.[a-z0-9]{1,8})?$/;
+/** Every ref this app writes: a bare uuid, nothing else (PM #71). */
+export const OPAQUE_REF = /^[0-9a-f-]{36}$/;
+/** Refs written before PM #71 (`<uuid>.<ext>`): still readable and deletable, renamed by migration 2. */
+export const LEGACY_REF = /^[0-9a-f-]{36}\.[a-z0-9]{1,8}$/;
 
-/** File refs are opaque: uuid v7 plus an optional short extension from the hint (never the name). */
-export function makeFileRef(hint?: string): string {
-  const ext = /([a-z0-9]{1,8})$/i.exec((hint ?? '').split('.').pop() ?? '')?.[1]?.toLowerCase();
-  return ext ? `${uuidv7()}.${ext}` : uuidv7();
+/**
+ * THE single place stored file names come from (PM #71): an opaque random id with no extension,
+ * so the file store reveals nothing about a file's type. The type is implied by the (encrypted)
+ * row that references the file. putFile() takes `hint` for SPEC Sec 6 compatibility and ignores it.
+ */
+export function makeFileRef(): string {
+  return uuidv7();
 }
 
+/** Accepts opaque refs and legacy refs (read, delete and migration only). */
 export function assertFileRef(ref: string): void {
-  if (!REF.test(ref)) throw new StorageError(`invalid file ref: ${ref}`);
+  if (!OPAQUE_REF.test(ref) && !LEGACY_REF.test(ref))
+    throw new StorageError(`invalid file ref: ${ref}`);
+}
+
+/** Targets of putFileAt must be opaque refs; nothing can create a name with an extension. */
+export function assertOpaqueRef(ref: string): void {
+  if (!OPAQUE_REF.test(ref)) throw new StorageError(`not an opaque file ref: ${ref}`);
 }
 
 /** Shared implementation. Concrete adapters extend it and declare `implements StorageAdapter`. */
@@ -69,12 +82,18 @@ export abstract class SqlAdapterBase {
     return this.#locked(() => this.#ready().exec(sql, params));
   }
 
-  putFile(bytes: Uint8Array, hint?: string): Promise<string> {
+  putFile(bytes: Uint8Array): Promise<string> {
     return this.#locked(async () => {
-      const ref = makeFileRef(hint);
+      const ref = makeFileRef();
       await this.#ready().writeFile(ref, bytes);
       return ref;
     });
+  }
+
+  /** Writes (or overwrites) the file at a given opaque ref. For migrations; see StorageAdapter. */
+  async putFileAt(ref: string, bytes: Uint8Array): Promise<void> {
+    assertOpaqueRef(ref);
+    return this.#locked(() => this.#ready().writeFile(ref, bytes));
   }
 
   async getFile(ref: string): Promise<Uint8Array> {
@@ -175,10 +194,14 @@ export abstract class SqlAdapterBase {
       query: async <R>(sql: string, params: unknown[] = []) =>
         (await check().query(sql, params)) as R[],
       exec: (sql, params = []) => check().exec(sql, params),
-      putFile: async (bytes, hint) => {
-        const ref = makeFileRef(hint);
+      putFile: async (bytes) => {
+        const ref = makeFileRef();
         await check().writeFile(ref, bytes);
         return ref;
+      },
+      putFileAt: async (ref, bytes) => {
+        assertOpaqueRef(ref);
+        await check().writeFile(ref, bytes);
       },
       getFile: async (ref) => {
         assertFileRef(ref);

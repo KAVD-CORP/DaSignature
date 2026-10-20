@@ -96,6 +96,7 @@ impl Storage {
             return Ok(());
         }
         fs::create_dir_all(self.files_dir()).map_err(err)?;
+        remove_partial_writes(&self.files_dir());
         let key = match key {
             Some(k) => k,
             None => self.keys.get_or_create()?,
@@ -149,8 +150,10 @@ impl Storage {
     }
 
     pub fn put_file(&self, file_ref: &str, data_b64: &str) -> Result<()> {
-        if !valid_ref(file_ref) {
-            return Err(format!("invalid file ref: {file_ref}"));
+        // PM #71: new files only ever get opaque names (no extension); legacy `<id>.<ext>`
+        // names stay readable/deletable for migration 2.
+        if !valid_ref(file_ref) || file_ref.contains('.') {
+            return Err(format!("not an opaque file ref: {file_ref}"));
         }
         let bytes = B64.decode(data_b64).map_err(err)?;
         let tmp = self.files_dir().join(format!("{file_ref}.tmp"));
@@ -189,6 +192,17 @@ impl Storage {
             c.close().map_err(|(_, e)| err(e))?;
         }
         Ok(())
+    }
+}
+
+/// A crash during put_file can leave `<ref>.tmp`; the real file was never replaced, so drop it.
+fn remove_partial_writes(dir: &Path) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for e in entries.flatten() {
+            if e.file_name().to_string_lossy().ends_with(".tmp") {
+                let _ = fs::remove_file(e.path());
+            }
+        }
     }
 }
 
@@ -398,8 +412,14 @@ mod tests {
             rows,
             vec![json!({ "v": { "$blob": "AAH/" }, "n": 1.5, "i": 1, "z": null })]
         );
-        let r = "0190a000-0000-7000-8000-000000000001.pdf";
+        let r = "0190a000-0000-7000-8000-000000000001";
         s.put_file(r, &B64.encode(b"bytes")).unwrap();
+        // PM #71: no new file can get an extension; a legacy name is still readable.
+        let legacy = "0190a000-0000-7000-8000-000000000002.pdf";
+        assert!(s.put_file(legacy, &B64.encode(b"x")).is_err());
+        fs::write(dir.path().join("files").join(legacy), b"old").unwrap();
+        assert_eq!(s.get_file(legacy).unwrap(), Some(B64.encode(b"old")));
+        s.delete_file(legacy).unwrap();
         assert_eq!(s.get_file(r).unwrap(), Some(B64.encode(b"bytes")));
         s.delete_file(r).unwrap();
         assert_eq!(s.get_file(r).unwrap(), None);

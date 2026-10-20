@@ -14,6 +14,7 @@ import { runMigrationContract } from './qa/migrations-contract.ts';
 import { runEncryptionContract } from './qa/encryption-contract.ts';
 import { runBackupContract } from './qa/backup-contract.ts';
 import { FakeCapacitor, fakeTauriInvoke } from './fakes.ts';
+import { runFileNameScan } from './file-names.ts';
 import {
   backupHarness,
   encryptionHarness,
@@ -109,4 +110,5 @@ for (const [name, kit] of kits) {
   runMigrationContract(name, migrationHarness(kit()));
   runEncryptionContract(name, encryptionHarness(kit()));
   runBackupContract(name, backupHarness(kit()));
+  runFileNameScan(name, kit());
 }

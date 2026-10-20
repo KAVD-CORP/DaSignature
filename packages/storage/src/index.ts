@@ -26,7 +26,12 @@ export {
   type CapacitorFilesBridge,
   type CapacitorSqliteBridge,
 } from './adapters/capacitor.ts';
-export { TauriStorageAdapter, TAURI_COMMANDS, type TauriInvoke } from './adapters/tauri.ts';
+export {
+  TauriSecureKeyStore,
+  TauriStorageAdapter,
+  TAURI_COMMANDS,
+  type TauriInvoke,
+} from './adapters/tauri.ts';
 export { Vault, IV_BYTES, TAG_BYTES } from './crypto/vault.ts';
 export { ARGON2ID, PBKDF2_ITERATIONS, newKdfParams, type KdfParams } from './crypto/kdf.ts';
 export {

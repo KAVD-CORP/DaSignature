@@ -5,6 +5,7 @@ import { runStorageContract } from './qa/contract.ts';
 import { runMigrationContract } from './qa/migrations-contract.ts';
 import { runEncryptionContract } from './qa/encryption-contract.ts';
 import { runBackupContract } from './qa/backup-contract.ts';
+import { runFileNameScan } from './file-names.ts';
 import {
   backupHarness,
   encryptionHarness,
@@ -85,3 +86,4 @@ runStorageContract('WebStorageAdapter', storageHarness(webKit()));
 runMigrationContract('WebStorageAdapter', migrationHarness(webKit()));
 runEncryptionContract('WebStorageAdapter', encryptionHarness(webKit()));
 runBackupContract('WebStorageAdapter', backupHarness(webKit()));
+runFileNameScan('WebStorageAdapter', webKit());

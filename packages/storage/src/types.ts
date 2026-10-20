@@ -19,6 +19,10 @@ export type SqlParam = string | number | bigint | boolean | null | Uint8Array;
  *   writes); if such a call waits longer than `lockTimeoutMs` it rejects with StorageBusyError
  *   (this is what happens if `fn` mistakenly calls the outer adapter: it fails, it never hangs).
  * - `close()` releases the database and file handles (needed for close + reopen, PERSIST-01).
+ * - `putFileAt(ref, bytes)` writes a file at a given opaque ref (a bare id). Only migrations use it
+ *   (migration 2 renames legacy `<id>.<ext>` files, PM #71); app code always uses putFile().
+ *
+ * File refs are opaque random ids with no extension (PM #71); `hint` never shapes the name.
  */
 export interface StorageAdapter {
   init(opts: { key?: CryptoKey | string }): Promise<void>;
@@ -26,6 +30,7 @@ export interface StorageAdapter {
   exec(sql: string, params?: unknown[]): Promise<void>;
   transaction<T>(fn: (tx: StorageAdapter) => Promise<T>): Promise<T>;
   putFile(bytes: Uint8Array, hint?: string): Promise<string>;
+  putFileAt(ref: string, bytes: Uint8Array): Promise<void>;
   getFile(ref: string): Promise<Uint8Array>;
   deleteFile(ref: string): Promise<void>;
   usage(): Promise<{ used: number; quota?: number }>;

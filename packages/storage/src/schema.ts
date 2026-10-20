@@ -1,5 +1,7 @@
+import { LEGACY_REF } from './adapters/base.ts';
+import { FileNotFoundError, SchemaTooNewError } from './errors.ts';
+import { FILE_COLUMNS } from './fields.ts';
 import type { StorageAdapter } from './types.ts';
-import { SchemaTooNewError } from './errors.ts';
 
 /**
  * Forward-only migrations. Version 1 is the SPEC Sec 6 schema, statement for statement
@@ -10,8 +12,18 @@ import { SchemaTooNewError } from './errors.ts';
 export interface Migration {
   version: number;
   name: string;
+  /**
+   * Optional, runs BEFORE the transaction, on the adapter. File work that can't be transactional
+   * (copying files). Must be idempotent: after a crash it runs again.
+   */
+  prepare?(db: StorageAdapter): Promise<void>;
   /** Runs inside the migration's transaction; use only the handle it is given. */
   up(tx: StorageAdapter): Promise<void>;
+  /**
+   * Optional, runs AFTER the commit, and again on every later migrate() call until it has nothing
+   * left to do (crash recovery). Must be idempotent. Used to delete superseded files.
+   */
+  finalize?(db: StorageAdapter): Promise<void>;
 }
 
 export const SCHEMA_V1: readonly string[] = [
@@ -26,6 +38,78 @@ export const SCHEMA_V1: readonly string[] = [
   'CREATE INDEX idx_placements_doc ON placements(document_id, page_index)',
 ];
 
+const REF_COLUMNS: readonly (readonly [string, string])[] = Object.entries(FILE_COLUMNS).flatMap(
+  ([t, cols]) => cols.map((c) => [t, c] as const),
+);
+/** Settings key listing legacy files still to delete after migration 2 committed. */
+export const PENDING_FILE_DELETES = 'storage.pendingFileDeletes';
+
+async function legacyRefs(db: StorageAdapter): Promise<string[]> {
+  const refs = new Set<string>();
+  for (const [t, c] of REF_COLUMNS) {
+    for (const r of await db.query<{ ref: unknown }>(`SELECT ${c} AS ref FROM ${t}`)) {
+      if (typeof r.ref === 'string' && LEGACY_REF.test(r.ref)) refs.add(r.ref);
+    }
+  }
+  return [...refs].sort();
+}
+/** `<uuid>.<ext>` -> `<uuid>`: deterministic, so every step can be re-run after a crash. */
+const opaqueOf = (legacy: string) => legacy.slice(0, 36);
+
+/**
+ * Migration 2 (PM #71): stored files get opaque names without an extension. Crash-safe:
+ * 1. prepare (idempotent): copy every legacy `<id>.<ext>` file to `<id>`, overwriting any partial
+ *    copy from an earlier attempt. The legacy files stay, so nothing can be lost.
+ * 2. up (one transaction): point every row at `<id>` and record the legacy names in settings.
+ * 3. finalize (after commit, re-run on every start until done): delete the legacy files, then the
+ *    record. A crash anywhere leaves either the old state (step 1 re-runs) or a committed state
+ *    whose leftovers step 3 removes, so there are no orphans and no lost files.
+ */
+export const MIGRATION_OPAQUE_FILE_REFS: Migration = {
+  version: 2,
+  name: 'opaque file refs (PM #71)',
+  prepare: async (db) => {
+    for (const ref of await legacyRefs(db)) {
+      let bytes: Uint8Array;
+      try {
+        bytes = await db.getFile(ref);
+      } catch (err) {
+        if (err instanceof FileNotFoundError) continue; // already dangling before the migration
+        throw err;
+      }
+      await db.putFileAt(opaqueOf(ref), bytes);
+    }
+  },
+  up: async (tx) => {
+    const refs = await legacyRefs(tx);
+    for (const [t, c] of REF_COLUMNS) {
+      await tx.exec(
+        `UPDATE ${t} SET ${c} = substr(${c}, 1, 36) WHERE ${c} GLOB '????????-????-????-????-????????????.*'`,
+      );
+    }
+    if (refs.length)
+      await tx.exec('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [
+        PENDING_FILE_DELETES,
+        JSON.stringify(refs),
+      ]);
+  },
+  finalize: async (db) => {
+    const [row] = await db.query<{ value: string }>('SELECT value FROM settings WHERE key = ?', [
+      PENDING_FILE_DELETES,
+    ]);
+    if (!row) return;
+    for (const ref of JSON.parse(row.value) as string[]) {
+      if (!LEGACY_REF.test(ref)) continue;
+      try {
+        await db.deleteFile(ref);
+      } catch (err) {
+        if (!(err instanceof FileNotFoundError)) throw err;
+      }
+    }
+    await db.exec('DELETE FROM settings WHERE key = ?', [PENDING_FILE_DELETES]);
+  },
+};
+
 export const MIGRATIONS: readonly Migration[] = [
   {
     version: 1,
@@ -34,6 +118,7 @@ export const MIGRATIONS: readonly Migration[] = [
       for (const sql of SCHEMA_V1) await tx.exec(sql);
     },
   },
+  MIGRATION_OPAQUE_FILE_REFS,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
@@ -78,8 +163,10 @@ export async function migrate(
       `database schema version ${String(current)} is newer than this app (version ${String(latest)}); downgrades are not supported`,
     );
   }
-  for (const m of [...list].sort((x, y) => x.version - y.version)) {
+  const sorted = [...list].sort((x, y) => x.version - y.version);
+  for (const m of sorted) {
     if (m.version <= current) continue;
+    await m.prepare?.(db);
     await db.transaction(async (tx) => {
       await m.up(tx);
       await tx.exec('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)', [
@@ -87,6 +174,9 @@ export async function migrate(
         now(),
       ]);
     });
+    await m.finalize?.(db);
   }
+  // Crash recovery: finish any committed migration whose post-commit cleanup was interrupted.
+  for (const m of sorted) if (m.version <= current) await m.finalize?.(db);
   return Math.max(current, latest);
 }

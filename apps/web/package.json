@@ -16,8 +16,13 @@
   "dependencies": {
     "@dasignature/core": "workspace:*",
     "@dasignature/i18n": "workspace:*",
+    "@dasignature/pdf": "workspace:*",
+    "@dasignature/storage": "workspace:*",
     "@dasignature/ui": "workspace:*",
     "@fontsource-variable/inter": "^5.2.0",
+    "@radix-ui/react-dialog": "^1.3.1",
+    "lucide-react": "^1.59.0",
+    "pdfjs-dist": "~5.4.624",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^5.0.15"
@@ -32,6 +37,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.6.1",
     "jsdom": "^26.1.0",
+    "pdf-lib": "^1.17.1",
     "postcss": "^8.5.31",
     "tailwindcss": "^3.4.19",
     "vite": "^6.4.0"

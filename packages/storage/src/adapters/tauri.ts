@@ -1,6 +1,6 @@
 import { fromBase64, toBase64 } from '../bytes.ts';
 import { FileNotFoundError, StorageError } from '../errors.ts';
-import type { Row, StorageAdapter } from '../types.ts';
+import type { Row, SecureKeyStore, StorageAdapter } from '../types.ts';
 import { SqlAdapterBase, type AdapterOptions, type SqlDriver } from './base.ts';
 
 /**
@@ -22,6 +22,8 @@ export const TAURI_COMMANDS = [
   'storage_delete_file',
   'storage_usage',
   'storage_close',
+  'secure_key_get_or_create',
+  'secure_key_delete',
 ] as const;
 
 export function encodeValue(v: unknown): unknown {
@@ -76,5 +78,24 @@ class TauriDriver implements SqlDriver {
 export class TauriStorageAdapter extends SqlAdapterBase implements StorageAdapter {
   constructor(invoke: TauriInvoke, opts?: AdapterOptions) {
     super(new TauriDriver(invoke), opts);
+  }
+}
+
+/**
+ * Desktop SecureKeyStore (M3): named 32-byte secrets in the OS credential store via the Tauri core
+ * (apps/desktop/src-tauri/src/secrets.rs). Used for the column data key (`dasig.dek`) through
+ * NativeKeyManager; the SQLCipher database key is a separate entry that never reaches JS.
+ */
+export class TauriSecureKeyStore implements SecureKeyStore {
+  constructor(private readonly invoke: TauriInvoke) {}
+  async getOrCreateSecret(name: string): Promise<Uint8Array> {
+    const b64 = await this.invoke('secure_key_get_or_create', { name });
+    if (typeof b64 !== 'string') throw new StorageError('secure key store returned no secret');
+    const bytes = fromBase64(b64);
+    if (bytes.length !== 32) throw new StorageError('secure key store returned a malformed secret');
+    return bytes;
+  }
+  async deleteSecret(name: string): Promise<void> {
+    await this.invoke('secure_key_delete', { name });
   }
 }

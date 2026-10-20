@@ -19,7 +19,7 @@ import {
   isUpdateRequired,
   RestoreNotConfirmedError,
 } from '../src/errors.ts';
-import { TABLES } from '../src/schema.ts';
+import { SCHEMA_VERSION, TABLES } from '../src/schema.ts';
 import type { DataStore } from '../src/datastore.ts';
 import { FAST_KDF, includes, MARKERS, memoryStore, seed } from './helpers.ts';
 
@@ -275,7 +275,10 @@ describe('BAK-01 .dasig backup', () => {
     const inner = unzipSync(plain);
     const data = JSON.parse(fromUtf8(inner['data.json'] as Uint8Array)) as Record<string, unknown>;
     const futureSchema = await encodeDasig(
-      zipSync({ ...inner, 'data.json': utf8(JSON.stringify({ ...data, schemaVersion: 2 })) }),
+      zipSync({
+        ...inner,
+        'data.json': utf8(JSON.stringify({ ...data, schemaVersion: SCHEMA_VERSION + 1 })),
+      }),
       PW,
       o,
     );

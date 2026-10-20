@@ -32,6 +32,13 @@ export function sqlQuery(db: SqliteDb, sql: string, params: readonly unknown[]):
 let node: Promise<Sqlite3> | undefined;
 /** sqlite-wasm initialised once per JS realm (Node tests, or a worker). */
 export function loadSqlite(): Promise<Sqlite3> {
+  // We use the opfs-sahpool VFS, which needs no COOP/COEP; silence the library's warning that the
+  // other (SharedArrayBuffer) OPFS VFS can't install. Errors still reach the console.
+  (globalThis as { sqlite3ApiConfig?: unknown }).sqlite3ApiConfig ??= {
+    warn: () => undefined,
+    log: () => undefined,
+    debug: () => undefined,
+  };
   node ??= import('@sqlite.org/sqlite-wasm').then((m) =>
     m.default({ print: () => undefined, printErr: () => undefined }),
   );

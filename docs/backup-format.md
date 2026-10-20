@@ -107,6 +107,9 @@ The decrypted payload is a ZIP (deflate allowed) containing:
   included.
 - `files/<ref>`: the decrypted bytes of every file a row points to (`documents.file_ref`,
   `exports.file_ref`, `signatures.image_ref`). Original PDFs are stored byte-for-byte (AC3).
+  `<ref>` is an opaque id (a UUID, **no extension**, PM #71); the file type is known only from the
+  row that points to it. Older backups may contain `<uuid>.pdf` / `<uuid>.png` names; readers
+  accept them and restore re-issues opaque refs. Nothing outside the encrypted payload names a file.
 
 ## 6. Versioning and rejection rules
 

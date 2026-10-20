@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { manyPages } from './fixtures.ts';
 
 // QA NET-01 / SPEC Sec 1.1, 5 rule 1, AC4: the app makes zero requests to any non-app origin.
 for (const path of ['/', '/showcase.html']) {
@@ -31,6 +32,7 @@ for (const path of ['/', '/showcase.html']) {
     await page.goto(path);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     if (path === '/') {
+      await page.goto('/#/settings');
       for (const name of ['Dark', 'Light', 'System']) {
         await page.getByRole('radio', { name }).click();
       }
@@ -60,9 +62,36 @@ test('every font is bundled and same-origin', async ({ page, baseURL }) => {
     if (r.resourceType() === 'font') fonts.push(r.url());
   });
   await page.goto('/');
+  await page.getByRole('heading', { level: 1 }).waitFor();
   await page.evaluate(() => document.fonts.ready);
   expect(fonts.length).toBeGreaterThan(0);
   for (const f of fonts) expect(f.startsWith(baseURL ?? '')).toBe(true);
   const inter = await page.evaluate(() => document.fonts.check('16px "Inter Variable"'));
   expect(inter).toBe(true);
+});
+
+test('zero outbound requests while importing and viewing a PDF', async ({ page, baseURL }) => {
+  const appOrigin = new URL(baseURL ?? '').origin;
+  const external: string[] = [];
+  await page.context().route('**/*', async (route) => {
+    const { protocol, origin } = new URL(route.request().url());
+    if (protocol === 'data:' || protocol === 'blob:' || origin === appOrigin)
+      await route.continue();
+    else {
+      external.push(route.request().url());
+      await route.abort('blockedbyclient');
+    }
+  });
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await page.goto('/');
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open PDF' }).first().click();
+  await (await chooser).setFiles(await manyPages(3, 'net.pdf'));
+  await expect(page.getByRole('img', { name: 'Page 1 of 3' }).locator('canvas')).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  expect(external).toEqual([]);
+  expect(errors).toEqual([]);
 });

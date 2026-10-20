@@ -1,18 +1,44 @@
-import { useEffect } from 'react';
-import { APP_NAME, APP_VERSION } from '@dasignature/core';
-import { DEFAULT_LOCALE, getDirection } from '@dasignature/i18n';
-import { applyTheme, THEME_PREFERENCES, type ThemePreference } from '@dasignature/ui';
-import { useThemeStore } from './state/theme.ts';
+import { lazy, Suspense, useEffect } from 'react';
+import { DEFAULT_LOCALE, getDirection, t } from '@dasignature/i18n';
+import { applyTheme } from '@dasignature/ui';
+import { GlobalDialogs } from './components/GlobalDialogs.tsx';
+import { Shell } from './components/Shell.tsx';
+import { Button, Spinner, ToastHost } from './components/ui.tsx';
+import { Library } from './screens/Library.tsx';
+import { Settings } from './screens/Settings.tsx';
+import { Signatures } from './screens/Signatures.tsx';
+import { createServices, type ServiceFactory } from './services/platform.ts';
+import { useApp } from './state/app.ts';
+import { useRoute } from './state/route.ts';
+import { loadTheme, useThemeStore } from './state/theme.ts';
 
-const THEME_LABELS: Record<ThemePreference, string> = {
-  system: 'System',
-  light: 'Light',
-  dark: 'Dark',
-};
+// Lazy chunk (SPEC Sec 5 rule 6): pdf.js and the editor load only when a document opens.
+const Editor = lazy(() => import('./screens/Editor.tsx'));
 
-export function App() {
+let booting: Promise<void> | undefined;
+export function boot(factory: ServiceFactory = createServices): Promise<void> {
+  booting ??= (async () => {
+    try {
+      const services = await factory();
+      useApp.getState().set({ services, status: 'ready' });
+      await loadTheme(services.store);
+      await useApp.getState().refreshDocs();
+    } catch (err) {
+      console.error(err);
+      useApp.getState().set({ status: 'error' });
+    }
+  })();
+  return booting;
+}
+/** Tests only. */
+export function resetBoot(): void {
+  booting = undefined;
+}
+
+export function App({ factory }: { factory?: ServiceFactory }) {
   const theme = useThemeStore((s) => s.preference);
-  const setTheme = useThemeStore((s) => s.setPreference);
+  const status = useApp((s) => s.status);
+  const route = useRoute();
 
   useEffect(() => {
     applyTheme(theme, document.documentElement);
@@ -21,45 +47,55 @@ export function App() {
   useEffect(() => {
     document.documentElement.lang = DEFAULT_LOCALE;
     document.documentElement.dir = getDirection(DEFAULT_LOCALE);
-  }, []);
+    void boot(factory);
+  }, [factory]);
+
+  if (status === 'booting')
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-bg">
+        <Spinner label={t('app.loading')} />
+      </main>
+    );
+  if (status === 'error')
+    return (
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-bg p-6 text-center">
+        <h1 className="text-title font-semibold">{t('app.bootError')}</h1>
+        <Button
+          variant="primary"
+          onClick={() => {
+            location.reload();
+          }}
+        >
+          {t('app.retry')}
+        </Button>
+      </main>
+    );
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-xl flex-col items-center justify-center gap-6 p-6 text-center">
-      <img src="/favicon.svg" alt="" width={96} height={96} data-decorative />
-      <h1 className="text-headline font-semibold tracking-wordmark">
-        <span className="font-normal">Da</span>Signature
-      </h1>
-      <p className="text-body-sm text-text-muted">Your files never leave your device.</p>
-
-      <fieldset className="rounded-card border border-border bg-surface p-4">
-        <legend className="px-1 text-caption text-text-muted">Appearance</legend>
-        <div role="radiogroup" aria-label="Theme" className="flex gap-2">
-          {THEME_PREFERENCES.map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              data-ui-state="radio"
-              aria-checked={theme === option}
-              onClick={() => {
-                setTheme(option);
-              }}
-              className={
-                'min-h-target min-w-target rounded-pill px-4 text-body-sm font-medium transition-colors duration-fast ease-out ' +
-                (theme === option
-                  ? 'bg-primary text-on-primary'
-                  : 'border border-border-strong bg-surface-2 text-text')
-              }
-            >
-              {THEME_LABELS[option]}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-
-      <footer className="text-caption text-text-muted">
-        {APP_NAME} {APP_VERSION} · Stored on this device only
-      </footer>
-    </main>
+    <>
+      {route.name === 'doc' ? (
+        <Suspense
+          fallback={
+            <main className="flex min-h-dvh items-center justify-center bg-canvas">
+              <Spinner label={t('app.loading')} />
+            </main>
+          }
+        >
+          <Editor docId={route.id} />
+        </Suspense>
+      ) : (
+        <Shell route={route}>
+          {route.name === 'settings' ? (
+            <Settings />
+          ) : route.name === 'signatures' ? (
+            <Signatures />
+          ) : (
+            <Library />
+          )}
+        </Shell>
+      )}
+      <GlobalDialogs />
+      <ToastHost />
+    </>
   );
 }

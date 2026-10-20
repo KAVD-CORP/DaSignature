@@ -7,13 +7,18 @@ screens and sharing come later and will be added here.
 
 ## Where data lives
 
-| Platform                  | Database                                                  | Files (PDFs, exports, signature images) | Data key                                                                                                                                                                                |
-| ------------------------- | --------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web / PWA                 | SQLite (WASM) in the browser's Origin Private File System | OPFS                                    | Wrapped in IndexedDB (see "Keys")                                                                                                                                                       |
-| Desktop (Tauri)           | SQLCipher database in the app-data folder                 | `files/` in the app-data folder         | Database key in the OS credential store (Keychain, Windows Credential Manager, Secret Service); the column data key goes in the same store (the bridge is wired with the app shell, M3) |
-| Android / iOS (Capacitor) | SQLCipher database (native binding lands in M8)           | App sandbox                             | Android Keystore / iOS Keychain (M8)                                                                                                                                                    |
+| Platform                  | Database                                                  | Files (PDFs, exports, signature images) | Data key                                                                                                                                                                                                       |
+| ------------------------- | --------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web / PWA                 | SQLite (WASM) in the browser's Origin Private File System | OPFS                                    | Wrapped in IndexedDB (see "Keys")                                                                                                                                                                              |
+| Desktop (Tauri)           | SQLCipher database in the app-data folder                 | `files/` in the app-data folder         | Database key in the OS credential store (Keychain, Windows Credential Manager, Secret Service); the column data key is a separate entry in the same store, read through the `secure_key_get_or_create` command |
+| Android / iOS (Capacitor) | SQLCipher database (native binding lands in M8)           | App sandbox                             | Android Keystore / iOS Keychain (M8)                                                                                                                                                                           |
 
 Nothing is written to `localStorage`, cookies or any remote service.
+
+**File names reveal nothing (PM #71).** Every stored file (original PDF, signed copy, signature
+image) is named with a random id and no extension, on every platform and inside backups. Whether a
+file is a PDF or an image is known only from the encrypted database row that points to it, and the
+file contents are encrypted, so a directory listing shows only random names.
 
 ## What is encrypted
 

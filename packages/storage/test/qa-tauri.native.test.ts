@@ -7,8 +7,8 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { afterAll } from 'vitest';
-import { TauriStorageAdapter } from '../src/adapters/tauri.ts';
+import { afterAll, describe, expect, it } from 'vitest';
+import { TauriSecureKeyStore, TauriStorageAdapter } from '../src/adapters/tauri.ts';
 import { randomBytes } from '../src/bytes.ts';
 import { NativeKeyManager } from '../src/crypto/keys.ts';
 import type { SecureKeyStore } from '../src/types.ts';
@@ -17,6 +17,7 @@ import { runStorageContract } from './qa/contract.ts';
 import { runMigrationContract } from './qa/migrations-contract.ts';
 import { runEncryptionContract } from './qa/encryption-contract.ts';
 import { runBackupContract } from './qa/backup-contract.ts';
+import { runFileNameScan } from './file-names.ts';
 import { startNative, type NativeProcess } from './native-ipc.ts';
 import {
   backupHarness,
@@ -113,6 +114,7 @@ runStorageContract(name, storageHarness(realTauriKit()));
 runMigrationContract(name, migrationHarness(realTauriKit()));
 runEncryptionContract(name, encryptionHarness(realTauriKit()));
 runBackupContract(name, backupHarness(realTauriKit()));
+runFileNameScan(name, realTauriKit());
 
 runEngineerContract(name, () => {
   const kit = realTauriKit();
@@ -121,4 +123,27 @@ runEngineerContract(name, () => {
     key: kit.initOpts.key,
     destroy: () => kit.wipe(),
   };
+});
+
+describe('TauriSecureKeyStore against the real secrets.rs (M3)', () => {
+  it('creates a 32-byte secret once, returns it again, deletes it, rejects bad names', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dasig-secrets-'));
+    roots.push(root);
+    const p = startNative(join(root, 'app-data'));
+    try {
+      const ks = new TauriSecureKeyStore(p.invoke);
+      const a = await ks.getOrCreateSecret('dasig.dek');
+      expect(a.length).toBe(32);
+      expect(await ks.getOrCreateSecret('dasig.dek')).toEqual(a);
+      await ks.deleteSecret('dasig.dek');
+      expect(await ks.getOrCreateSecret('dasig.dek')).not.toEqual(a);
+      await expect(ks.getOrCreateSecret('../database-key')).rejects.toThrow(/invalid secret name/);
+      // NativeKeyManager on top: the data key comes from the OS store and opens a vault.
+      const vault = await new NativeKeyManager(ks).unlock();
+      const sealed = await vault.seal(new Uint8Array([1, 2, 3]), 'documents.title', 'x');
+      expect(await vault.open(sealed, 'documents.title', 'x')).toEqual(new Uint8Array([1, 2, 3]));
+    } finally {
+      await p.stop();
+    }
+  });
 });
