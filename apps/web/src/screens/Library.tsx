@@ -56,7 +56,6 @@ function DocCard({ doc, onDelete }: { doc: DocumentRecord; onDelete: () => void 
     <li className="relative">
       <a
         href={`#/doc/${doc.id}`}
-        aria-label={`${doc.title}, ${doc.status === 'signed' ? t('library.signed') : t('library.draft')}`}
         className="block overflow-hidden rounded-card border border-border bg-surface hover:border-border-strong"
       >
         <div className="flex aspect-[4/3] items-center justify-center bg-surface-2" aria-hidden>

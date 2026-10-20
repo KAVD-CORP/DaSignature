@@ -34,10 +34,10 @@ test('imports a 20-page PDF, lists it, and navigates to page 3', async ({ page }
   // PERF-04: never more than 10 live page canvases.
   expect(await page.locator('canvas[data-pdf-canvas]').count()).toBeLessThanOrEqual(10);
   await page.getByRole('link', { name: 'Back to Library' }).click();
-  await expect(page.getByRole('link', { name: '20page, Draft' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^20page .*Draft$/ })).toBeVisible();
   // Survives a reload (data in OPFS, encrypted).
   await page.reload();
-  await expect(page.getByRole('link', { name: '20page, Draft' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^20page .*Draft$/ })).toBeVisible();
 });
 
 test('zoom in/out and fit width change the page size; at most 10 canvases on a long doc', async ({

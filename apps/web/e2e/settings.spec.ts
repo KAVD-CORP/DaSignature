@@ -93,7 +93,7 @@ test('backup, clear all data (typed confirm), restore (replace) brings the docum
     .click();
   await expect(page.getByText('Backup restored')).toBeVisible();
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Backup me, Draft' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Backup me .*Draft$/ })).toBeVisible();
 });
 
 test('language: Arabic switches the catalog and the layout to RTL, persists', async ({ page }) => {

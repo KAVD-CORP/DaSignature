@@ -36,6 +36,11 @@ cp "$REPO/README.md" "$REPO/CONTRIBUTING.md" "$REPO/SECURITY.md" "$REPO/THIRD_PA
 cp -r "$REPO/docs/"* "$STAGE/docs/"
 awk '/^## Run on PC/{p=1} /^## Android and iOS/{p=0} p' "$REPO/README.md" > "$STAGE/docs/run-on-pc.md"
 cp "$SHARED/qa/TEST_PLAN.md" "$SHARED/qa/"M*_EXIT_CHECKLIST.md "$STAGE/docs/qa/"
+# QA reports (PM #61, QA final B2): distinct names that keep SUMMARY; a missing one fails the build.
+E="$SHARED/qa/evidence"
+cp "$E/M1-QA/SUMMARY.md" "$STAGE/docs/qa/M1-QA-SUMMARY.md"
+cp "$E/M2-QA/verify-da3aecb/SUMMARY.md" "$STAGE/docs/qa/M2-QA-verify-da3aecb-SUMMARY.md"
+cp "$E/FINAL/SUMMARY.md" "$STAGE/docs/qa/FINAL-QA-SUMMARY.md"
 [ -d "$SHARED/release-evidence" ] && cp -r "$SHARED/release-evidence" "$STAGE/docs/qa/release-evidence"
 cp "$REPO/render.yaml" "$STAGE/"
 

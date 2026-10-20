@@ -354,7 +354,8 @@ export function PeekPill({
     <button
       type="button"
       onClick={onClick}
-      aria-label={t('viewer.expandPages')}
+      // The visible text starts the name (WCAG 2.5.3 Label in Name).
+      aria-label={`${t('viewer.pageShort', { page: String(current + 1), count: String(count) })}, ${t('viewer.expandPages')}`}
       className="absolute bottom-4 left-4 z-10 min-h-target rounded-pill border border-border bg-surface px-4 text-body-sm font-medium text-text shadow-float tablet:hidden"
     >
       {t('viewer.pageShort', { page: String(current + 1), count: String(count) })}
@@ -585,6 +586,18 @@ export default function Editor({ docId }: { docId: string }) {
   const { doc, error } = useLoadedDoc(docId);
   const { viewer, scale, setScale, current, setCurrent, fit, jump } = useViewer(doc);
   const [thumbs, setThumbs] = useState(() => innerWidth >= 1025);
+  // Crossing the desktop breakpoint resets the pane: docked open on desktop, closed (drawer) below,
+  // so a pane opened at desktop width never covers the phone canvas or the floating Export button.
+  useEffect(() => {
+    const mq = matchMedia('(min-width: 1025px)');
+    const onChange = (e: MediaQueryListEvent) => {
+      setThumbs(e.matches);
+    };
+    mq.addEventListener('change', onChange);
+    return () => {
+      mq.removeEventListener('change', onChange);
+    };
+  }, []);
   const services = useApp((s) => s.services);
   const ed = usePlacementEditor(doc, current);
   const { sigMap, place, setMore } = ed;

@@ -304,6 +304,10 @@ export const PdfViewer = forwardRef<
     <div
       ref={scroller}
       data-viewer-scroll
+      // Focusable so keyboard users can scroll the pages (WCAG 2.1.1; axe scrollable-region-focusable).
+      role="region"
+      aria-label={t('viewer.document')}
+      tabIndex={0}
       onScroll={update}
       className="relative h-full overflow-auto bg-canvas [touch-action:pan-x_pan-y]"
     >

@@ -99,6 +99,7 @@ export const en = {
     pageOf: 'Page {page} of {count}',
     pageShort: 'Page {page} / {count}',
     goToPage: 'Go to page',
+    document: 'Document',
     pageError: "Page {page} couldn't be displayed",
     loadError: "This PDF couldn't be read. It may be damaged.",
   },

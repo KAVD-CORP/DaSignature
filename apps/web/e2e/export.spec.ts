@@ -84,7 +84,7 @@ test('AC1/AC3: export flattens vector placements into <name>-signed.pdf; origina
   ).toHaveValue('Lease-signed-2');
   await page.getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('link', { name: 'Back to Library' }).click();
-  await expect(page.getByRole('link', { name: 'Lease, Signed' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Lease .*Signed$/ })).toBeVisible();
 
   // The exported file opens, has the audit page, and the signature is flattened ink on page 1.
   await open(page, path);
