@@ -94,8 +94,7 @@ export function presetSettings(
   id: PresetId,
   keep?: Pick<PenSettings, 'color' | 'opacity'>,
 ): PenSettings {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- drop the label
-  const { name: _name, ...p } = PRESETS[id];
+  const { name, ...p } = PRESETS[id];
   return { ...p, color: keep?.color ?? BASE.color, opacity: keep?.opacity ?? 1 };
 }
 export const DEFAULT_PEN: PenSettings = presetSettings('ballpoint');

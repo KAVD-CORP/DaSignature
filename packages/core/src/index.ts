@@ -15,3 +15,4 @@ export function producerString(version: string = APP_VERSION): string {
 
 export * from './pen.ts';
 export * from './image.ts';
+export * from './placement.ts';

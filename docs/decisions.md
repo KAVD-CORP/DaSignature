@@ -180,3 +180,15 @@ These two PM decisions knowingly differ from the spec text. They are recorded he
 | E-62 | User pen presets live in the existing pen_presets table. The last pen is saved in setting `pen.last`. Editing a signature keeps its own pen. | Lean mode. |
 | E-63 | SEC-04: while the Studio is open, a capture-phase document listener cancels copy and cut, so signature data never reaches the clipboard. | Lean mode. |
 | E-64 | Default handling is one default per kind. The first signature of a kind becomes the default, and deleting the default promotes the most recent remaining one. | Lean mode. |
+
+### M5 Placement editor
+
+| ID | Decision | Why |
+|---|---|---|
+| E-65 | Placement boxes are fractions of the page (0..1, top-left origin, y down) for the unrotated rectangle. `rotation` is in degrees clockwise about the centre. Export converts them using the page size, /Rotate and the CropBox. | Independent of zoom. |
+| E-66 | Vector signatures are snapshotted into the placement's encrypted `data_json` (svg, colour, opacity), so renaming, editing or deleting the saved signature never changes a placed one. Image signatures reference `signature_id`. | Predictable documents. |
+| E-67 | "Full name" is stored as type `text` with `data.field = 'name'`, so the M2 schema is unchanged. Dates store the ISO day plus a format id (locale-short/medium/long, YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY, DD.MM.YYYY). The default comes from setting `date_format`. | No schema change. |
+| E-68 | Undo/redo keeps whole-list snapshots (limit 200). A drag counts as one step. Slider and text edits coalesce within 800 ms. Autosave is debounced 500 ms through `savePlacements` (replace-all in a transaction), shows "Saved" for 2 s, and flushes on leave or Ctrl+S. | Simple and atomic. |
+| E-69 | Placing uses `click`, not `pointerdown`, so a touch scroll never drops a field. When a tool button is activated from the keyboard, the field is placed in the middle of the current page and focused (the non-pointer path). | Design 03 a11y. |
+| E-70 | The page `role=img` moved to an inner wrapper so placements (`role=group`) stay in the a11y tree. The selection uses `.ds-selection` with `data-ui-state="selection"`; handles use `.ds-selection-handle` with `data-ui-state="handle"`; layers have `data-qa-backdrop="#FFFFFF"`. | QA markers. |
+| E-71 | Text fields use Inter at 0.75 × the field height, and the width auto-fits the text. Export uses the same ratio, with glyph outlines. The rotation slider has no snapping (the rotate handle snaps at right angles; Alt turns it off). | Consistency. |

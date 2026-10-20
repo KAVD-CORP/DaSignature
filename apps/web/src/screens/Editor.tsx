@@ -1,13 +1,34 @@
 /**
- * Editor screen (design 03-editor). M3: the viewer: top bar (back, title, zoom, fit width, page
- * jump), thumbnails (desktop pane, tablet drawer, phone sheet with peek pill), continuous pages.
+ * Editor screen (design 03-editor): the viewer (top bar, thumbnails, continuous pages) plus the
+ * M5 placement editor (side panel / phone dock, per-page placement layers, undo/redo, autosave).
  */
 import { ArrowLeft, Maximize2, Minus, PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  boxAt,
+  defaultSizePt,
+  formatDate,
+  parseStoredSvg,
+  todayIso,
+  type FieldType,
+} from '@dasignature/core';
 import { t } from '@dasignature/i18n';
 import { openPdf, pageSize, type PDFDocumentProxy } from '@dasignature/pdf/render';
-import type { DocumentRecord } from '@dasignature/storage';
-import { Button, IconButton, Spinner } from '../components/ui.tsx';
+import type { DocumentRecord, SignatureRecord } from '@dasignature/storage';
+import { Button, IconButton, Modal, Spinner } from '../components/ui.tsx';
+import {
+  LiveRegion,
+  PhoneDock,
+  Properties,
+  SavedCaption,
+  SidePanel,
+  ToolHint,
+  UndoRedo,
+} from '../components/EditorPanels.tsx';
+import { FIELD_LABEL, PlacementLayer, textWidthPt } from '../components/PlacementLayer.tsx';
+import { signatureImageUrl } from '../components/SignaturePreview.tsx';
+import { placements, usePlacements } from '../state/placements.ts';
+import { useSignatures } from './Signatures.tsx';
 import {
   PAD,
   PX_PER_PT,
@@ -20,6 +41,8 @@ import { Thumbnails, releaseThumbnails } from '../components/Thumbnails.tsx';
 import { session } from '../services/session.ts';
 import { askPassword, useApp } from '../state/app.ts';
 import { navigate } from '../state/route.ts';
+
+const Studio = lazy(() => import('./Studio.tsx'));
 
 export interface LoadedDoc {
   rec: DocumentRecord;
@@ -324,10 +347,250 @@ export function PeekPill({
   );
 }
 
+async function aspectOf(sig: SignatureRecord): Promise<number> {
+  const v = sig.svg_path ? parseStoredSvg(sig.svg_path) : null;
+  if (v) return v.width / Math.max(1, v.height);
+  const url = await signatureImageUrl(sig);
+  if (!url) return 3;
+  const img = new Image();
+  img.src = url;
+  await img.decode().catch(() => undefined);
+  return img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 3;
+}
+
+const isTyping = (e: KeyboardEvent) => {
+  const el = e.target as HTMLElement | null;
+  return (
+    !!el &&
+    (el.tagName === 'INPUT' ||
+      el.tagName === 'TEXTAREA' ||
+      el.tagName === 'SELECT' ||
+      el.isContentEditable)
+  );
+};
+
+/** Placement editing: load/flush, place-by-tool, shortcuts. */
+function usePlacementEditor(doc: LoadedDoc | undefined, current: number) {
+  const services = useApp((s) => s.services);
+  const { list: sigs, refresh } = useSignatures();
+  const sigMap = useMemo(() => new Map((sigs ?? []).map((s) => [s.id, s])), [sigs]);
+  const [studio, setStudio] = useState<'signature' | 'initials' | undefined>();
+  const [askName, setAskName] = useState<{ page: number; fx: number; fy: number } | undefined>();
+  const [more, setMore] = useState(false);
+  const docId = doc?.rec.id;
+
+  useEffect(() => {
+    if (!services || !docId) return;
+    void placements.load(docId, services.store);
+    return () => {
+      placements.reset();
+    };
+  }, [services, docId]);
+
+  const place = useCallback(
+    async (page: number, fx: number, fy: number, nameOverride?: string) => {
+      const st = usePlacements.getState();
+      const tool = st.tool;
+      const size = doc?.sizes[page];
+      if (!tool || !size || !services) return;
+      const base = { page, rotation: 0, opacity: 1, signatureId: null };
+      const announce = () => {
+        placements.announce(
+          t('editor.placedOn', { field: t(FIELD_LABEL[tool]), page: String(page + 1) }),
+        );
+      };
+      if (tool === 'signature' || tool === 'initials') {
+        const sig =
+          (st.toolSignature ? sigMap.get(st.toolSignature) : undefined) ??
+          sigs?.find((s) => s.kind === tool && s.is_default) ??
+          sigs?.find((s) => s.kind === tool);
+        if (!sig) {
+          setStudio(tool);
+          return;
+        }
+        const box = boxAt(fx, fy, defaultSizePt(tool, await aspectOf(sig)), size);
+        placements.add({
+          ...base,
+          ...box,
+          type: tool,
+          signatureId: sig.id,
+          data: sig.svg_path
+            ? { svg: sig.svg_path, color: sig.color ?? '#1B1F2A', sigOpacity: sig.opacity ?? 1 }
+            : {},
+        });
+        announce();
+        return;
+      }
+      let text: string | undefined;
+      let format: string | undefined;
+      if (tool === 'date') {
+        text = todayIso();
+        format = (await services.store.getSetting('date_format')) ?? 'locale-medium';
+      } else if (tool === 'name') {
+        text = nameOverride ?? (await services.store.getSetting('signer_name')) ?? '';
+        if (!text.trim()) {
+          setAskName({ page, fx, fy });
+          return;
+        }
+      } else if (tool === 'text') text = '';
+      const pt = defaultSizePt(tool);
+      if (text !== undefined && tool !== 'text') {
+        const shown = tool === 'date' ? formatDate(text, format ?? '') : text;
+        pt.w = Math.max(24, textWidthPt(shown, pt.h));
+      }
+      const box = boxAt(fx, fy, pt, size);
+      placements.add({
+        ...base,
+        ...box,
+        type: tool,
+        data: tool === 'checkbox' ? { checked: true } : { text, ...(format ? { format } : {}) },
+      });
+      announce();
+      if (tool === 'text') {
+        if (innerWidth < 600) setMore(true);
+        requestAnimationFrame(() => {
+          document.querySelector<HTMLInputElement>('[data-autofocus-text]')?.focus();
+        });
+      }
+    },
+    [doc, services, sigs, sigMap],
+  );
+
+  const pick = useCallback(
+    (tool: FieldType, signatureId?: string, keyboard?: boolean) => {
+      const st = usePlacements.getState();
+      if (st.tool === tool && st.toolSignature === signatureId && !keyboard) {
+        placements.setTool(undefined);
+        return;
+      }
+      if ((tool === 'signature' || tool === 'initials') && !sigs?.some((s) => s.kind === tool)) {
+        setStudio(tool); // none saved: the Studio opens first (design 03)
+        return;
+      }
+      placements.setTool(tool, signatureId);
+      // Non-pointer path: keyboard activation places it in the middle of the current page.
+      if (keyboard)
+        void place(current, 0.5, 0.5).then(() => {
+          const id = usePlacements.getState().selected;
+          if (id && tool !== 'text')
+            document.querySelector<HTMLElement>(`[data-placement="${id}"]`)?.focus();
+        });
+    },
+    [sigs, place, current],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (isTyping(e)) return;
+      const k = e.key.toLowerCase();
+      if (mod && k === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) placements.redo();
+        else placements.undo();
+      } else if (mod && k === 'y') {
+        e.preventDefault();
+        placements.redo();
+      } else if (mod && k === 's') {
+        e.preventDefault();
+        void placements.flush();
+      } else if (e.key === 'Escape' && usePlacements.getState().tool) {
+        placements.setTool(undefined);
+      } else if (
+        e.key === 'Enter' &&
+        usePlacements.getState().tool &&
+        !(e.target as HTMLElement | null)?.closest('button, [role=group]')
+      ) {
+        e.preventDefault();
+        void place(current, 0.5, 0.5);
+      }
+    };
+    addEventListener('keydown', onKey);
+    return () => {
+      removeEventListener('keydown', onKey);
+    };
+  }, [place, current]);
+
+  return {
+    sigs,
+    sigMap,
+    refresh,
+    place,
+    pick,
+    studio,
+    setStudio,
+    askName,
+    setAskName,
+    more,
+    setMore,
+  };
+}
+
+function SignerNameDialog({
+  open,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (name: string) => void;
+}) {
+  const [name, setName] = useState('');
+  return (
+    <Modal open={open} onClose={onClose} title={t('editor.signerPrompt')}>
+      <form
+        className="flex flex-col gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim()) onSave(name.trim());
+        }}
+      >
+        <input
+          aria-label={t('editor.signerPrompt')}
+          data-ui-state="input"
+          autoComplete="name"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+          }}
+          className="min-h-target rounded-input border border-border-strong bg-surface px-2 text-body text-text"
+        />
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose}>{t('editor.cancelTool')}</Button>
+          <Button type="submit" variant="primary" disabled={!name.trim()}>
+            {t('editor.signerSave')}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export default function Editor({ docId }: { docId: string }) {
   const { doc, error } = useLoadedDoc(docId);
   const { viewer, scale, setScale, current, setCurrent, fit, jump } = useViewer(doc);
   const [thumbs, setThumbs] = useState(() => innerWidth >= 1025);
+  const services = useApp((s) => s.services);
+  const ed = usePlacementEditor(doc, current);
+  const { sigMap, place, setMore } = ed;
+  const overlay = useCallback(
+    (index: number, size: PageSize, sc: number) => (
+      <PlacementLayer
+        index={index}
+        size={size}
+        scale={sc}
+        sigs={sigMap}
+        onPlace={(page, fx, fy) => {
+          void place(page, fx, fy);
+        }}
+        onMore={() => {
+          if (innerWidth < 600) setMore(true);
+          else document.querySelector<HTMLElement>('[data-autofocus-text]')?.focus();
+        }}
+      />
+    ),
+    [sigMap, place, setMore],
+  );
 
   if (error)
     return (
@@ -353,6 +616,8 @@ export default function Editor({ docId }: { docId: string }) {
   return (
     <main className="flex h-dvh flex-col bg-bg">
       <TopBar title={doc.rec.title} scale={scale} setScale={setScale} fit={fit}>
+        <SavedCaption />
+        <UndoRedo />
         <PagesToggle open={thumbs} setOpen={setThumbs} />
         <div className="hidden tablet:block">
           <PageJump current={current} count={doc.sizes.length} onJump={jump} />
@@ -368,6 +633,12 @@ export default function Editor({ docId }: { docId: string }) {
             scale={scale}
             onScale={setScale}
             onCurrent={setCurrent}
+            overlay={overlay}
+          />
+          <ToolHint
+            onCancel={() => {
+              placements.setTool(undefined);
+            }}
           />
           {!thumbs ? (
             <PeekPill
@@ -379,7 +650,53 @@ export default function Editor({ docId }: { docId: string }) {
             />
           ) : null}
         </div>
+        <SidePanel
+          sigs={ed.sigs}
+          sizes={doc.sizes}
+          onPick={ed.pick}
+          onNewSignature={() => {
+            ed.setStudio('signature');
+          }}
+        />
       </div>
+      <PhoneDock onPick={ed.pick} />
+      <LiveRegion />
+      <Modal
+        open={ed.more}
+        onClose={() => {
+          setMore(false);
+        }}
+        title={t('editor.properties')}
+      >
+        <Properties sizes={doc.sizes} />
+      </Modal>
+      <SignerNameDialog
+        open={ed.askName !== undefined}
+        onClose={() => {
+          ed.setAskName(undefined);
+        }}
+        onSave={(name) => {
+          const at = ed.askName;
+          ed.setAskName(undefined);
+          void services?.store.setSetting('signer_name', name);
+          if (at) void place(at.page, at.fx, at.fy, name);
+        }}
+      />
+      {ed.studio ? (
+        <Suspense fallback={null}>
+          <Studio
+            open
+            initialKind={ed.studio}
+            onSaved={(rec) => {
+              placements.setTool(rec.kind, rec.id);
+            }}
+            onClose={() => {
+              ed.setStudio(undefined);
+              void ed.refresh();
+            }}
+          />
+        </Suspense>
+      ) : null}
     </main>
   );
 }

@@ -50,6 +50,7 @@ export default tseslint.config(
       // Off (decisions.md E-49): screens export small hooks/helpers next to components; this only affects
       // dev HMR granularity, not correctness.
       'react-refresh/only-export-components': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
       'no-restricted-syntax': ['error', ...restrictedSyntax],
     },
   },

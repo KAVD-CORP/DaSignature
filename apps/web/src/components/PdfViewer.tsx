@@ -145,13 +145,17 @@ function PageView({
   const h = size.height * scale;
   return (
     <div
-      role="img"
-      aria-label={t('viewer.pageOf', { page: String(index + 1), count: String(count) })}
       data-page-index={index}
       className="relative mx-auto border border-border bg-pdf-page"
       style={{ width: w + 2, height: h + 2 }}
     >
-      {active ? <canvas ref={canvasRef} data-pdf-canvas className="block h-full w-full" /> : null}
+      <div
+        role="img"
+        aria-label={t('viewer.pageOf', { page: String(index + 1), count: String(count) })}
+        className="absolute inset-0 bg-pdf-page"
+      >
+        {active ? <canvas ref={canvasRef} data-pdf-canvas className="block h-full w-full" /> : null}
+      </div>
       {state === 'rendering' || state === 'idle' ? (
         <div className="absolute inset-0 flex items-center justify-center text-pdf-ink">
           <Spinner />
