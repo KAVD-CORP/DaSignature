@@ -205,3 +205,15 @@ These two PM decisions knowingly differ from the spec text. They are recorded he
 | E-77 | The export file name counter replays `signedFileName` over the number of earlier exports, because the exports table has no name column. Names the user edited aren't tracked. | No schema change. |
 | E-78 | The protection notice case comes from pdf.js at open time: openPassword (a password was used), restricted (getPermissions is missing any flag), encrypted. The copy follows copy/export-password-notice.md exactly. | PM #45/#53/#58. |
 | E-79 | Web Share with files is used when `navigator.canShare` supports it. Otherwise Save is a download. Native save and share adapters come in M8. | Platform split. |
+
+### M7 Security and settings
+
+| ID | Decision | Why |
+|---|---|---|
+| E-80 | i18n runtime: `setLocale`/`resolveLocale` plus `LOCALES` (en, ar). Other catalogs are `PartialMessages`, and missing keys fall back to English. The UI tree is keyed by locale, so switching re-renders without a restart; `<html lang dir>` is set too. Arabic is the second locale (RTL proof) and is partly translated; the rest is open to community translation. | SPEC 3.2/10. |
+| E-81 | RTL: flex rows mirror through `dir`, and chevrons and back arrows get `rtl:rotate-180`. Some absolute positions (panels, floating pills) still use physical left/right. That's accepted for v1.0 and logged as a polish gap. | Lean. |
+| E-82 | App lock (web): a 6-digit passcode through the existing AppLock/WebKeyManager (Argon2id KEK). The lock screen shows at boot when the passcode mode is on. Auto-lock follows PM #19 (Immediately / 1 / 5 default / 15 / 30 / Never) and runs on `visibilitychange`. Turning the lock off needs the passcode. On native shells the key lives in the OS keystore, so the app-lock row is informational. Biometric unlock is not built (it needs native biometric plugins), and this is listed as a known gap. | Storage design from M2. |
+| E-83 | Restore is Replace-only, behind a danger confirm (PM #68 overrides design 07's Merge). The preview shows only manifest data (created date, app version; PM #67 allows no counts). Error copy follows design 07. | PM #67/#68. |
+| E-84 | Clear all data uses the typed confirm (matchesConfirmWord, locale-aware, with the English DELETE fallback). With the app lock on, the passcode is asked afterwards (PM #53) and the passcode is cleared. Then `replaceAll(empty)`, a reload, and the "All data cleared" toast. | Design copy. |
+| E-85 | Settings follows design 07: grouped rows, and sub-pages open in place with focus on their h1. Storage shows counts plus the web quota as text; the stacked bar and "Delete exported copies" are left out (lean). Privacy and licences are bundled `?raw` text. | Lean. |
+| E-86 | a11y: an axe e2e (wcag2a/aa, 21aa, 22aa) runs on Library, Settings, Editor with a placement, and the Export sheet, with 0 critical/serious findings. The rotate handle is pointer-only (aria-hidden); keyboard users rotate with the Rotation slider. | AC9. |

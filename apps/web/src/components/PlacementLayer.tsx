@@ -390,7 +390,8 @@ export function PlacementLayer({
                   style={{ top: -16, height: 16 }}
                 />
                 <span
-                  aria-label={t('editor.rotate')}
+                  aria-hidden
+                  title={t('editor.rotate')}
                   className="pointer-events-auto absolute left-1/2 flex min-h-target min-w-target -translate-x-1/2 -translate-y-1/2 cursor-grab items-center justify-center"
                   style={{ top: -16 }}
                   onPointerDown={(e) => {

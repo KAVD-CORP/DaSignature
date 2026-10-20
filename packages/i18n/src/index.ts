@@ -3,8 +3,44 @@
  * Milestone 7. M1 sets up the key structure and the locale-aware typed-confirm match (D9).
  */
 import { en, type Messages } from './messages/en.ts';
+import { ar } from './messages/ar.ts';
 
-export { en, type Messages };
+export { en, ar, type Messages };
+
+type DeepPartial<T> = {
+  readonly [K in keyof T]?: T[K] extends string ? string : DeepPartial<T[K]>;
+};
+/** A translation catalog: any subset of the English keys (the rest fall back to English). */
+export type PartialMessages = DeepPartial<Messages>;
+
+/** Shipped UI locales, each named in its own language. */
+export const LOCALES: readonly { id: string; name: string; messages: PartialMessages }[] = [
+  { id: 'en', name: 'English', messages: en },
+  { id: 'ar', name: 'العربية', messages: ar },
+];
+
+let current: { locale: string; messages: PartialMessages } = { locale: 'en', messages: en };
+
+/** Best shipped locale for a preference ('system' = the browser's languages). */
+export function resolveLocale(pref: string, languages: readonly string[] = []): string {
+  const want = pref === 'system' ? languages : [pref];
+  for (const l of want) {
+    const base = l.toLowerCase().split(/[-_]/)[0] ?? '';
+    const hit = LOCALES.find((x) => x.id === base);
+    if (hit) return hit.id;
+  }
+  return 'en';
+}
+
+/** Switches the active catalog; returns the resolved locale id. */
+export function setLocale(locale: string): string {
+  const hit = LOCALES.find((l) => l.id === locale) ?? LOCALES[0];
+  current = { locale: hit?.id ?? 'en', messages: hit?.messages ?? en };
+  return current.locale;
+}
+export function currentLocale(): string {
+  return current.locale;
+}
 export const DEFAULT_LOCALE = 'en';
 
 const RTL_LANGUAGES = new Set(['ar', 'fa', 'he', 'ur', 'ps', 'yi', 'dv', 'ckb', 'sd', 'ug']);
@@ -25,10 +61,16 @@ export type MessageKey = Paths<Messages>;
 export function t(
   key: MessageKey,
   params: Readonly<Record<string, string>> = {},
-  messages: Messages = en,
+  messages: PartialMessages = current.messages,
 ): string {
-  const lookup = (m: Messages): unknown =>
-    key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], m);
+  const lookup = (m: PartialMessages): unknown =>
+    key
+      .split('.')
+      .reduce<unknown>(
+        (node, part) =>
+          node && typeof node === 'object' ? (node as Record<string, unknown>)[part] : undefined,
+        m,
+      );
   const found = lookup(messages);
   const text = typeof found === 'string' ? found : String(lookup(en));
   return text.replace(/\{(\w+)\}/g, (match, name: string) => params[name] ?? match);
@@ -44,7 +86,7 @@ const normalize = (s: string) => s.normalize('NFKC').trim();
 export function matchesConfirmWord(
   typed: string,
   locale: string,
-  messages: Messages = en,
+  messages: PartialMessages = current.messages,
 ): boolean {
   const collator = new Intl.Collator(locale, { usage: 'search', sensitivity: 'accent' });
   const input = normalize(typed);

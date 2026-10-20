@@ -23,7 +23,7 @@ describe('@dasignature/i18n', () => {
 describe('matchesConfirmWord (D9)', () => {
   const de: Messages = {
     ...en,
-    settings: { clearData: { ...en.settings.clearData, confirmWord: 'LÖSCHEN' } },
+    settings: { ...en.settings, clearData: { ...en.settings.clearData, confirmWord: 'LÖSCHEN' } },
   };
   it('is case-insensitive and ignores surrounding whitespace', () => {
     expect(matchesConfirmWord('delete', 'en')).toBe(true);
@@ -41,5 +41,21 @@ describe('storage messages (PM #69)', () => {
   it('has the update-required copy that storage errors map to', () => {
     expect(t('storage.updateRequired.database')).toMatch(/Update DaSignature/);
     expect(t('storage.updateRequired.backup')).toMatch(/Update DaSignature/);
+  });
+});
+
+describe('locales', () => {
+  it('switches catalogs with English fallback and resolves system languages', async () => {
+    const i18n = await import('./index.ts');
+    expect(i18n.resolveLocale('system', ['ar-EG', 'en'])).toBe('ar');
+    expect(i18n.resolveLocale('system', ['de-DE'])).toBe('en');
+    i18n.setLocale('ar');
+    expect(i18n.t('nav.library')).toBe('المكتبة');
+    expect(i18n.t('library.openPdf')).toBe('فتح ملف PDF');
+    expect(i18n.t('viewer.goToPage')).toBe('Go to page'); // fallback
+    expect(i18n.matchesConfirmWord('حذف', 'ar')).toBe(true);
+    expect(i18n.matchesConfirmWord('delete', 'ar')).toBe(true);
+    i18n.setLocale('en');
+    expect(i18n.t('nav.library')).toBe('Library');
   });
 });

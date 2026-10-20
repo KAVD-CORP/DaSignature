@@ -245,6 +245,10 @@ export class AppLock implements VaultSource {
   lock(): void {
     this.#vault = undefined;
   }
+  /** 'passcode' when the app lock is on. */
+  async mode(): Promise<'new' | 'device' | 'passcode'> {
+    return this.keys.mode();
+  }
   isUnlocked(): boolean {
     return this.#vault !== undefined;
   }

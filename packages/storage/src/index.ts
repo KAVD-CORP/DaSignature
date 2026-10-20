@@ -44,6 +44,7 @@ export {
   MemoryKeyValueStore,
   type KeyValueStore,
   type VaultSource,
+  type AutoLockMinutes,
 } from './crypto/keys.ts';
 export {
   DataStore,

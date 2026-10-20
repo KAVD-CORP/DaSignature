@@ -24,7 +24,7 @@
     "test:e2e": "pnpm --filter @dasignature/web test:e2e",
     "test:browser": "pnpm --filter @dasignature/storage test:browser",
     "test:native": "pnpm --filter @dasignature/storage test:native",
-    "check:contracts": "node scripts/qa/check-contract-registration.mjs --root=. --milestone=M6",
+    "check:contracts": "node scripts/qa/check-contract-registration.mjs --root=. --milestone=M7",
     "check:render": "node scripts/qa/check-render-headers.mjs --allow-missing-sw"
   },
   "devDependencies": {
@@ -43,6 +43,6 @@
     "vitest": "^4.1.12"
   },
   "config": {
-    "milestone": "M6"
+    "milestone": "M7"
   }
 }

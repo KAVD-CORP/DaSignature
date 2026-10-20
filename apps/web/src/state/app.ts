@@ -31,6 +31,9 @@ interface AppState {
   password: PasswordRequest | undefined;
   alert: string | undefined;
   persistNote: boolean;
+  /** Bumped when the app-lock mode changes (Settings re-reads it). */
+  lockTick: number;
+  bumpLock: () => void;
   set: (patch: Partial<AppState>) => void;
   showToast: (t: Omit<Toast, 'id'>) => void;
   refreshDocs: () => Promise<void>;
@@ -48,6 +51,10 @@ export const useApp = create<AppState>()((set, get) => ({
   password: undefined,
   alert: undefined,
   persistNote: false,
+  lockTick: 0,
+  bumpLock: () => {
+    set({ lockTick: get().lockTick + 1 });
+  },
   set: (patch) => {
     set(patch);
   },
