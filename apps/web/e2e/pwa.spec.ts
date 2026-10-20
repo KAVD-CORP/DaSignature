@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './test.ts';
 import { FIXTURES } from './fixtures.ts';
 
 /** M8 PWA: the generated service worker precaches the whole build, so the app opens offline. */

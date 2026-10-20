@@ -756,8 +756,7 @@ export function Settings() {
             className="self-start"
             onClick={() => {
               void services?.store.setSetting('onboarding.done', '').then(() => {
-                location.hash = '#/';
-                location.reload();
+                useApp.getState().set({ intro: true });
               });
             }}
           >

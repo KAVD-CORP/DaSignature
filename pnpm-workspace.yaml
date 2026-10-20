@@ -10,6 +10,4 @@ onlyBuiltDependencies:
 # docs/decisions.md. `pnpm check:audit` (scripts/check-audit.mjs) fails on an undocumented or
 # expired ignore; pnpm itself has no expiry support.
 auditConfig:
-  ignoreGhsas:
-    # braces <=3.0.3: approved PM #54, expires at M9 (see audit-exceptions.json).
-    - GHSA-vfj7-8cjw-p6xm
+  ignoreGhsas: []

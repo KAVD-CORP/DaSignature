@@ -1,12 +1,50 @@
 @import '@fontsource-variable/inter/index.css';
-@import '@dasignature/ui/tokens.css';
+@import 'tailwindcss';
+/* In the base layer so utilities win over its element rules (v3 source order). */
+@import '@dasignature/ui/tokens.css' layer(base);
+@import '@dasignature/ui/theme.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Class sources outside this app (Tailwind v4 auto-detects only the app itself). */
+@source '../../../packages/ui/src';
 
+/* v3 compatibility: v4 defaults borders to currentColor and buttons to cursor: default. */
 @layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border);
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
   body {
-    @apply min-h-dvh;
+    min-height: 100dvh;
+  }
+}
+
+/* Onboarding card change (design 01): cross-fade + 16 px slide; fade only under reduced motion. */
+@keyframes ds-card-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@keyframes ds-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.ds-onboarding-card {
+  animation: ds-card-in var(--motion-base) var(--motion-easing);
+}
+[dir='rtl'] .ds-onboarding-card {
+  animation-name: ds-fade-in;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-onboarding-card {
+    animation-name: ds-fade-in;
   }
 }

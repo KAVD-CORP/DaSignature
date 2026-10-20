@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './test.ts';
 import { manyPages } from './fixtures.ts';
 
 // QA NET-01 / SPEC Sec 1.1, 5 rule 1, AC4: the app makes zero requests to any non-app origin.

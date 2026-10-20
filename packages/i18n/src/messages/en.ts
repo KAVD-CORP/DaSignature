@@ -15,6 +15,29 @@ export const en = {
     dismiss: 'Dismiss',
     ok: 'OK',
   },
+  onboarding: {
+    label: 'Introduction',
+    skip: 'Skip',
+    next: 'Next',
+    getStarted: 'Get started',
+    back: 'Back',
+    continue: 'Continue',
+    skipForNow: 'Skip for now',
+    step: 'Step {n} of {total}',
+    card1Title: 'Your files never leave your device',
+    card1Body:
+      'DaSignature works entirely offline. No account, no uploads, no tracking. Documents and signatures are stored encrypted on this device.',
+    card2Title: 'Sign in seconds',
+    card2Body:
+      'Open a PDF, draw or type your signature, drop it on the page and save a signed copy. Your original file is never changed.',
+    card3Title: 'Open source',
+    card3Body:
+      'Free under the Apache-2.0 license. Anyone can read the code and check how your data is handled.',
+    nameTitle: "What's your name?",
+    nameBody:
+      'Used for the Full name field and the optional audit page. Stored only on this device. You can change it in Settings.',
+    nameLabel: 'Your name',
+  },
   lock: {
     title: 'DaSignature is locked',
     body: 'Enter your passcode to unlock.',

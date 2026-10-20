@@ -31,6 +31,8 @@ interface AppState {
   password: PasswordRequest | undefined;
   alert: string | undefined;
   persistNote: boolean;
+  /** First-run introduction pending (design 01). */
+  intro: boolean;
   /** Bumped when the app-lock mode changes (Settings re-reads it). */
   lockTick: number;
   bumpLock: () => void;
@@ -51,6 +53,7 @@ export const useApp = create<AppState>()((set, get) => ({
   password: undefined,
   alert: undefined,
   persistNote: false,
+  intro: false,
   lockTick: 0,
   bumpLock: () => {
     set({ lockTick: get().lockTick + 1 });

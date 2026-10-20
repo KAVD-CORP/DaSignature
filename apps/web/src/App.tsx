@@ -6,6 +6,7 @@ import { Shell } from './components/Shell.tsx';
 import { Button, Spinner, ToastHost } from './components/ui.tsx';
 import { Library, openFiles, openPicker } from './screens/Library.tsx';
 import { installInbound } from './services/inbound.ts';
+import { ONBOARDING_KEY, Onboarding } from './screens/Onboarding.tsx';
 import { Settings } from './screens/Settings.tsx';
 import { Signatures } from './screens/Signatures.tsx';
 import { createServices, type ServiceFactory } from './services/platform.ts';
@@ -28,6 +29,10 @@ export function boot(factory: ServiceFactory = createServices): Promise<void> {
       setAutoLock(
         parseAutoLock(await services.store.getSetting(AUTOLOCK_KEY).catch(() => undefined)),
       );
+      const introDone = await services.store.getSetting(ONBOARDING_KEY).catch(() => '1');
+      // e2e specs set this flag to start on the Library (e2e/test.ts); the intro has its own spec.
+      const skip = (globalThis as { __DASIG_E2E_SKIP_INTRO__?: boolean }).__DASIG_E2E_SKIP_INTRO__;
+      useApp.getState().set({ intro: !introDone && !skip });
       if (services.lock && !services.lock.isUnlocked()) {
         useApp.getState().set({ services, status: 'locked' });
         return;
@@ -116,6 +121,7 @@ export function App({ factory }: { factory?: ServiceFactory }) {
   const status = useApp((s) => s.status);
   const route = useRoute();
   const locale = useLocale((s) => s.locale);
+  const intro = useApp((s) => s.intro);
 
   useEffect(() => {
     applyTheme(theme, document.documentElement);
@@ -156,6 +162,14 @@ export function App({ factory }: { factory?: ServiceFactory }) {
           {t('app.retry')}
         </Button>
       </main>
+    );
+
+  if (intro)
+    return (
+      <div key={locale} className="contents">
+        <Onboarding />
+        <ToastHost />
+      </div>
     );
 
   return (

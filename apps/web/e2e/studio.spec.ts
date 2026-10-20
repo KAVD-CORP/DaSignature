@@ -2,7 +2,8 @@ import { deflateSync } from 'node:zlib';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './test.ts';
 import { drawOnPad } from './helpers.ts';
 
 const canvasHash = (page: Page) =>

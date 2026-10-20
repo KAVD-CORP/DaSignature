@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { createRequire } from 'node:module';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -68,7 +69,13 @@ function pdfjsAssets(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), securityHeaders(), pdfjsAssets(), serviceWorker()],
+  plugins: [
+    react(),
+    tailwindcss({ optimize: false }),
+    securityHeaders(),
+    pdfjsAssets(),
+    serviceWorker(),
+  ],
   build: {
     target: 'es2022',
     // Never inline assets as data: URIs; every asset is a same-origin hashed file.

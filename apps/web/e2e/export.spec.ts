@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './test.ts';
 import { PDFDocument } from 'pdf-lib';
 import { manyPages } from './fixtures.ts';
 import { drawOnPad } from './helpers.ts';

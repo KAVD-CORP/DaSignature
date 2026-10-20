@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './test.ts';
 import { manyPages } from './fixtures.ts';
 
 async function importDoc(page: Page, name = 'Backup me.pdf') {

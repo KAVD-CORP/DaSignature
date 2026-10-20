@@ -11,6 +11,8 @@ export async function memoryServices(): Promise<Services> {
   const db = new MemoryStorageAdapter();
   await db.init({});
   const store = await DataStore.open(db, new Vault(key));
+  // Unit tests start past the first-run introduction (covered by e2e/onboarding.spec.ts).
+  await store.setSetting('onboarding.done', '1');
   return {
     kind: 'web',
     store,
