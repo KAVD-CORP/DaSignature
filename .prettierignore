@@ -20,3 +20,4 @@ assets/logo/
 # QA contract suites, copied verbatim from qa/contract/storage (M2 checklist row 2)
 packages/storage/test/qa/
 scripts/qa/*.mjs
+THIRD_PARTY_NOTICES.md

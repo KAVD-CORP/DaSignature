@@ -2,16 +2,17 @@
 
 DaSignature is local-first: there are no accounts, no servers, no analytics and no network calls
 at runtime (SPEC Sec 5, PM #1). Your documents and signatures stay on your device. This page says
-exactly what is stored, where, and what is encrypted. It covers the storage layer (M2); the app's
-screens and sharing come later and will be added here.
+exactly what is stored, where, and what is encrypted, and what leaves the app (only what you
+export or share yourself).
 
 ## Where data lives
 
-| Platform                  | Database                                                  | Files (PDFs, exports, signature images) | Data key                                                                                                                                                                                                       |
-| ------------------------- | --------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web / PWA                 | SQLite (WASM) in the browser's Origin Private File System | OPFS                                    | Wrapped in IndexedDB (see "Keys")                                                                                                                                                                              |
-| Desktop (Tauri)           | SQLCipher database in the app-data folder                 | `files/` in the app-data folder         | Database key in the OS credential store (Keychain, Windows Credential Manager, Secret Service); the column data key is a separate entry in the same store, read through the `secure_key_get_or_create` command |
-| Android / iOS (Capacitor) | SQLCipher database (native binding lands in M8)           | App sandbox                             | Android Keystore / iOS Keychain (M8)                                                                                                                                                                           |
+| Platform            | Database                                                  | Files (PDFs, exports, signature images) | Data key                                                                                                                                                                                                       |
+| ------------------- | --------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web / PWA           | SQLite (WASM) in the browser's Origin Private File System | OPFS                                    | Wrapped in IndexedDB (see "Keys")                                                                                                                                                                              |
+| Desktop (Tauri)     | SQLCipher database in the app-data folder                 | `files/` in the app-data folder         | Database key in the OS credential store (Keychain, Windows Credential Manager, Secret Service); the column data key is a separate entry in the same store, read through the `secure_key_get_or_create` command |
+| Android (Capacitor) | SQLCipher database in the app's private storage           | App sandbox (`files/dasig`)             | Random 32-byte secrets wrapped by an Android Keystore AES-GCM key (private SharedPreferences); `allowBackup=false`                                                                                             |
+| iOS (Capacitor)     | v1.0: the web engine inside WKWebView (see Web / PWA)     | WKWebView origin storage                | As Web / PWA (a native Keychain plugin is planned)                                                                                                                                                             |
 
 Nothing is written to `localStorage`, cookies or any remote service.
 
@@ -71,3 +72,21 @@ salt per backup, AES-256-GCM). Its only plaintext part is a small manifest with 
 app version, creation time, KDF parameters, salt, nonce and cipher name: no titles, names, counts or
 hashes (PM #67). Restoring replaces all data on the device after you confirm (PM #68). The format
 is documented in [backup-format.md](./backup-format.md).
+
+## What leaves the app
+
+Nothing, unless you do it:
+
+- **Export / Save** writes the signed copy where you choose (download, native Save dialog, or the
+  Android document picker).
+- **Share** hands the signed copy to the app you pick in the OS share sheet.
+- **Backup** writes an encrypted `.dasig` file where you choose.
+
+The app has no network permission on Android, and on every platform the Content-Security-Policy
+allows only same-origin resources. The Windows installer may download Microsoft WebView2 during
+setup if it isn't installed yet. That is the installer, not the app.
+
+## Removing your data
+
+Settings › Clear all data deletes every document, signature, signed copy and setting. Uninstalling the desktop or mobile app removes its data folder. On Linux/Windows
+the database key stays in the OS keyring under "DaSignature" until you remove it there.

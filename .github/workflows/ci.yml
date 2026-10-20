@@ -38,12 +38,14 @@ jobs:
         run: pnpm check:contracts
       - name: Build
         run: pnpm build
-      - name: Render headers (QA RENDER-01, PM #62; sw.js arrives in M8)
+      - name: Render headers (QA RENDER-01, PM #62)
         run: pnpm check:render
       - name: Size budget (web initial JS < 250 KiB gzip)
         run: pnpm size
       - name: License allowlist (PM decision 21)
         run: pnpm check:licenses
+      - name: Third-party notices up to date
+        run: pnpm check:notices
       - name: Audit (fail on high/critical, PM decision 21)
         run: pnpm check:audit
       - name: Install Playwright Chromium

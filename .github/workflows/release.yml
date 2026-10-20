@@ -1,0 +1,119 @@
+name: Release
+
+# Builds every platform on a version tag and attaches the artifacts to a draft GitHub release.
+# Signing is optional: without the secrets the artifacts are built unsigned (README "Run on PC").
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build && pnpm size && pnpm check:render
+      - run: cd apps/web/dist && zip -qr ../../../DaSignature-web.zip .
+      - uses: actions/upload-artifact@v4
+        with: { name: web, path: DaSignature-web.zip }
+
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            bundles: nsis
+          - os: macos-latest
+            bundles: dmg
+          - os: ubuntu-22.04
+            bundles: deb,rpm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - uses: dtolnay/rust-toolchain@stable
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - run: pnpm install --frozen-lockfile
+      - name: Build (Windows uses the LibTomCrypt SQLCipher provider, docs/decisions.md E-96)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            export LIBSQLITE3_FLAGS="-DSQLCIPHER_CRYPTO_LIBTOMCRYPT"
+            export CL="-I$GITHUB_WORKSPACE/apps/desktop/src-tauri/vendor/libtomcrypt/src/headers"
+            CONF="--config src-tauri/tauri.windows.conf.json"
+          fi
+          cd apps/desktop && pnpm tauri build --bundles ${{ matrix.bundles }} ${CONF:-}
+      - if: runner.os == 'Linux'
+        name: Lean AppImage (PM #6 budget)
+        run: |
+          curl -sSLo appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool && APPIMAGETOOL="$PWD/appimagetool --appimage-extract-and-run" sh scripts/release/appimage-lean.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/release/bundle/deb/*.deb
+            apps/desktop/src-tauri/target/release/bundle/rpm/*.rpm
+            apps/desktop/src-tauri/target/release/bundle/appimage-lean/*.AppImage
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dasignature/mobile sync:android
+      - name: Release signing (optional secrets)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$RUNNER_TEMP/release.jks" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEYSTORE_PASSWORD" > apps/mobile/android/keystore.properties
+      - run: ./gradlew assembleRelease
+        working-directory: apps/mobile/android
+      - uses: actions/upload-artifact@v4
+        with: { name: android, path: apps/mobile/android/app/build/outputs/apk/release/*.apk }
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dasignature/mobile sync:ios
+      - name: Simulator build (unsigned)
+        working-directory: apps/mobile/ios/App
+        run: pod install && xcodebuild -workspace App.xcworkspace -scheme App -sdk iphonesimulator -configuration Release CODE_SIGNING_ALLOWED=NO build
+
+  release:
+    needs: [web, desktop, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts }
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: artifacts/**/*
