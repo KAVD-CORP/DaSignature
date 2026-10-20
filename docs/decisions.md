@@ -168,3 +168,15 @@ These two PM decisions knowingly differ from the spec text. They are recorded he
 | E-56 | **Routing:** hash routes (`#/`, `#/doc/<id>`, `#/signatures`, `#/settings`) so the static host needs no rewrites for deep links and the Tauri/Capacitor shells work from `index.html`. Theme moved to Settings and is saved in the settings table. | Simplest. |
 | E-57 | **sqlite-wasm warning silenced:** `sqlite3ApiConfig.warn` is a no-op in the storage worker (we use the SAH-pool VFS; the warning was about the other OPFS VFS needing COOP/COEP). Errors still log. | Clean console (privacy test fails on console errors). |
 
+
+### M4 Signature Studio
+
+| ID | Decision | Why |
+|---|---|---|
+| E-58 | Script fonts are 10 OFL @fontsource Latin woff2 files, bundled and loaded with FontFace from same-origin URLs, so nothing goes to a CDN. A typed signature is converted to vector outlines when it's saved (fontkit, in a lazy `glyphs` chunk of 343 KB gz), so exports never embed the font. | Lean mode. |
+| E-59 | `svg_path` holds a minimal `<svg viewBox><path d fill fill-opacity/></svg>`, read back by `parseStoredSvg`. Group opacity uses one combined path. `strokes_json` keeps the raw strokes and pen settings so a signature can be re-edited. | Lean mode. |
+| E-60 | The image pipeline uses an Otsu threshold (plateau midpoint) to remove the background, then contrast, an optional ink tint and auto-trim to the ink bounds. Manual crop handles were simplified to auto-trim plus a margin. The PNG is stored sealed via image_ref. | Lean mode. |
+| E-61 | The Scan tab appears only when enumerateDevices reports a camera. Frames stay in memory and nothing is recorded. | Lean mode. |
+| E-62 | User pen presets live in the existing pen_presets table. The last pen is saved in setting `pen.last`. Editing a signature keeps its own pen. | Lean mode. |
+| E-63 | SEC-04: while the Studio is open, a capture-phase document listener cancels copy and cut, so signature data never reaches the clipboard. | Lean mode. |
+| E-64 | Default handling is one default per kind. The first signature of a kind becomes the default, and deleting the default promotes the most recent remaining one. | Lean mode. |

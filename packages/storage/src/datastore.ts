@@ -18,6 +18,47 @@ export interface DocumentRecord {
   updated_at: string;
 }
 
+export interface SignatureRecord {
+  id: string;
+  kind: 'signature' | 'initials';
+  source: 'draw' | 'type' | 'image' | 'scan';
+  name: string;
+  strokes_json: string | null;
+  svg_path: string | null;
+  image_ref: string | null;
+  typed_text: string | null;
+  font_id: string | null;
+  color: string | null;
+  opacity: number | null;
+  is_default: number;
+  created_at: string;
+}
+
+export type NewSignature = Omit<
+  SignatureRecord,
+  'id' | 'image_ref' | 'is_default' | 'created_at'
+> & {
+  /** PNG bytes for upload/scan signatures (stored as a sealed file). */
+  image?: Uint8Array;
+  isDefault?: boolean;
+};
+
+export interface PlacementRecord {
+  id: string;
+  document_id: string;
+  page_index: number;
+  type: 'signature' | 'initials' | 'date' | 'text' | 'checkbox' | 'annotation';
+  signature_id: string | null;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rotation: number;
+  opacity: number;
+  data_json: string | null;
+  z_index: number;
+}
+
 export interface ExportRecord {
   id: string;
   document_id: string;
@@ -115,6 +156,24 @@ export class DataStore {
     return Promise.all(rows.map((r) => this.decryptRow(table, r))) as Promise<T[]>;
   }
 
+  /** Updates columns of one row (encrypting per the field map). */
+  async update(
+    table: TableName,
+    id: string,
+    patch: Row,
+    db: StorageAdapter = this.db,
+  ): Promise<void> {
+    const key = KEY_COLUMN[table];
+    const enc = await this.encryptRow(table, { ...patch, [key]: id });
+    const cols = Object.keys(enc).filter((c) => c !== key);
+    if (cols.length === 0) return;
+    if (!cols.every((c) => IDENT.test(c))) throw new StorageError('bad column name');
+    await db.exec(
+      `UPDATE ${table} SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE ${key} = ?`,
+      [...cols.map((c) => enc[c]), id],
+    );
+  }
+
   /* ------------------------------- files ------------------------------- */
 
   /** Seals and stores a blob owned by `table.column` of row `id`; returns the ref. */
@@ -205,6 +264,126 @@ export class DataStore {
       throw err;
     }
     return rec;
+  }
+
+  /* ------------------------------ signatures ------------------------------ */
+
+  listSignatures(): Promise<SignatureRecord[]> {
+    return this.select<SignatureRecord>('signatures', 'ORDER BY created_at DESC, id DESC');
+  }
+  async getSignature(id: string): Promise<SignatureRecord | undefined> {
+    return (await this.select<SignatureRecord>('signatures', 'WHERE id = ?', [id]))[0];
+  }
+
+  /** Saves a signature; the first of its kind (or `isDefault`) becomes the kind's default. */
+  async addSignature(input: NewSignature): Promise<SignatureRecord> {
+    const id = uuidv7();
+    const { image, isDefault, ...fields } = input;
+    const image_ref = image ? await this.putSealedFile('signatures', id, image, 'sig') : null;
+    const rec: SignatureRecord = {
+      ...fields,
+      id,
+      image_ref,
+      is_default: 0,
+      created_at: this.now(),
+    };
+    try {
+      await this.db.transaction(async (tx) => {
+        const others = await tx.query<{ n: number }>(
+          'SELECT count(*) AS n FROM signatures WHERE kind = ? AND is_default = 1',
+          [input.kind],
+        );
+        const makeDefault = isDefault === true || (others[0]?.n ?? 0) === 0;
+        if (makeDefault) {
+          await tx.exec('UPDATE signatures SET is_default = 0 WHERE kind = ?', [input.kind]);
+          rec.is_default = 1;
+        }
+        await this.insert('signatures', { ...rec }, tx);
+      });
+    } catch (err) {
+      if (image_ref) await this.db.deleteFile(image_ref).catch(() => undefined);
+      throw err;
+    }
+    return rec;
+  }
+
+  async setDefaultSignature(id: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const rows = await tx.query<{ kind: string }>('SELECT kind FROM signatures WHERE id = ?', [
+        id,
+      ]);
+      const kind = rows[0]?.kind;
+      if (!kind) return;
+      await tx.exec('UPDATE signatures SET is_default = (id = ?) WHERE kind = ?', [id, kind]);
+    });
+  }
+
+  async renameSignature(id: string, name: string): Promise<void> {
+    await this.update('signatures', id, { name });
+  }
+
+  /** Deletes a signature (placements keep their geometry; FK sets signature_id NULL). If it was the
+   * default, the most recent remaining item of the same kind becomes the default. */
+  async deleteSignature(id: string): Promise<void> {
+    const ref = await this.db.transaction(async (tx) => {
+      const rows = await tx.query<{ kind: string; is_default: number; image_ref: string | null }>(
+        'SELECT kind, is_default, image_ref FROM signatures WHERE id = ?',
+        [id],
+      );
+      const row = rows[0];
+      if (!row) return null;
+      await tx.exec('DELETE FROM signatures WHERE id = ?', [id]);
+      if (row.is_default)
+        await tx.exec(
+          `UPDATE signatures SET is_default = 1 WHERE id = (SELECT id FROM signatures WHERE kind = ? ORDER BY created_at DESC, id DESC LIMIT 1)`,
+          [row.kind],
+        );
+      return row.image_ref;
+    });
+    if (ref) await this.db.deleteFile(ref).catch(() => undefined);
+  }
+
+  async getSignatureImage(
+    sig: Pick<SignatureRecord, 'id' | 'image_ref'>,
+  ): Promise<Uint8Array | undefined> {
+    if (!sig.image_ref) return undefined;
+    return this.getSealedFile('signatures', sig.id, sig.image_ref);
+  }
+
+  /* ------------------------------ placements ------------------------------ */
+
+  listPlacements(documentId: string): Promise<PlacementRecord[]> {
+    return this.select<PlacementRecord>(
+      'placements',
+      'WHERE document_id = ? ORDER BY page_index, z_index, id',
+      [documentId],
+    );
+  }
+
+  /** Replaces every placement of a document in one transaction (autosave of the draft). */
+  async savePlacements(documentId: string, items: readonly PlacementRecord[]): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.exec('DELETE FROM placements WHERE document_id = ?', [documentId]);
+      for (const p of items) await this.insert('placements', { ...p, document_id: documentId }, tx);
+      await tx.exec('UPDATE documents SET updated_at = ? WHERE id = ?', [this.now(), documentId]);
+    });
+  }
+
+  async setDocumentStatus(id: string, status: 'draft' | 'signed'): Promise<void> {
+    await this.db.exec('UPDATE documents SET status = ?, updated_at = ? WHERE id = ?', [
+      status,
+      this.now(),
+      id,
+    ]);
+  }
+
+  listExports(documentId: string): Promise<ExportRecord[]> {
+    return this.select<ExportRecord>('exports', 'WHERE document_id = ? ORDER BY created_at, id', [
+      documentId,
+    ]);
+  }
+  async getExportPdf(rec: Pick<ExportRecord, 'id' | 'file_ref'>): Promise<Uint8Array> {
+    return this.getSealedFile('exports', rec.id, rec.file_ref);
   }
 
   async setSetting(key: string, value: string): Promise<void> {

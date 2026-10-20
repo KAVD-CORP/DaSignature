@@ -45,7 +45,15 @@ export {
   type KeyValueStore,
   type VaultSource,
 } from './crypto/keys.ts';
-export { DataStore, type DocumentRecord, type ExportRecord, type PlainDump } from './datastore.ts';
+export {
+  DataStore,
+  type DocumentRecord,
+  type ExportRecord,
+  type NewSignature,
+  type PlacementRecord,
+  type PlainDump,
+  type SignatureRecord,
+} from './datastore.ts';
 export {
   createBackup,
   openBackup,

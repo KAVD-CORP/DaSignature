@@ -111,3 +111,74 @@ describe('DataStore encryption at rest (PM #17, #38; ENC-02 on the memory engine
     expect(backend.files.size).toBe(0);
   });
 });
+
+describe('DataStore signatures and placements (M4/M5)', () => {
+  const sig = (kind: 'signature' | 'initials', name: string) => ({
+    kind,
+    source: 'draw' as const,
+    name,
+    strokes_json: '{"v":1}',
+    svg_path: '<svg viewBox="0 0 1 1"><path d="M0,0Z"/></svg>',
+    typed_text: null,
+    font_id: null,
+    color: '#1B1F2A',
+    opacity: 1,
+  });
+  it('keeps one default per kind, promotes the newest on delete, stores images sealed', async () => {
+    const { store, db } = await memoryStore();
+    const a = await store.addSignature(sig('signature', 'A'));
+    const b = await store.addSignature(sig('signature', 'B'));
+    const i = await store.addSignature(sig('initials', 'I'));
+    expect([a.is_default, b.is_default, i.is_default]).toEqual([1, 0, 1]);
+    await store.setDefaultSignature(b.id);
+    const defaults = (await store.listSignatures()).filter((s) => s.is_default).map((s) => s.name);
+    expect(defaults.sort()).toEqual(['B', 'I']);
+    await store.renameSignature(a.id, 'A2');
+    expect((await store.getSignature(a.id))?.name).toBe('A2');
+    await store.deleteSignature(b.id);
+    expect((await store.getSignature(a.id))?.is_default).toBe(1);
+    const img = await store.addSignature({
+      ...sig('signature', 'Img'),
+      source: 'image',
+      image: new Uint8Array([137, 80, 78, 71, 1, 2, 3]),
+    });
+    expect(img.image_ref).toMatch(/^[0-9a-f-]{36}$/);
+    expect(await store.getSignatureImage(img)).toEqual(new Uint8Array([137, 80, 78, 71, 1, 2, 3]));
+    const raw = await db.getFile(img.image_ref ?? '');
+    expect(Buffer.from(raw).indexOf(Buffer.from([137, 80, 78, 71, 1, 2, 3]))).toBe(-1);
+    await store.deleteSignature(img.id);
+    await expect(db.getFile(img.image_ref ?? '')).rejects.toThrow();
+  });
+  it('saves placements atomically and they cascade with the document', async () => {
+    const { store, db } = await memoryStore();
+    const doc = await store.addDocument({ title: 'T', pdf: fakePdf('P'), pageCount: 3 });
+    const p = (id: string, page: number) => ({
+      id,
+      document_id: doc.id,
+      page_index: page,
+      type: 'text' as const,
+      signature_id: null,
+      x: 0.1,
+      y: 0.2,
+      w: 0.3,
+      h: 0.05,
+      rotation: 15,
+      opacity: 1,
+      data_json: '{"text":"secret words"}',
+      z_index: 0,
+    });
+    await store.savePlacements(doc.id, [
+      p('0190a1b2-c3d4-7e5f-8a9b-000000000001', 2),
+      p('0190a1b2-c3d4-7e5f-8a9b-000000000002', 0),
+    ]);
+    const got = await store.listPlacements(doc.id);
+    expect(got.map((g) => g.page_index)).toEqual([0, 2]);
+    expect(got[0]?.data_json).toBe('{"text":"secret words"}');
+    const [rawRow] = await db.query<{ data_json: string }>('SELECT data_json FROM placements');
+    expect(rawRow?.data_json).not.toContain('secret');
+    await store.savePlacements(doc.id, [p('0190a1b2-c3d4-7e5f-8a9b-000000000003', 1)]);
+    expect(await store.listPlacements(doc.id)).toHaveLength(1);
+    await store.deleteDocument(doc.id);
+    expect(await db.query('SELECT * FROM placements')).toHaveLength(0);
+  });
+});
