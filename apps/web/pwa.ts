@@ -4,11 +4,15 @@
  * new deploy installs a new cache and drops the old one. No runtime network beyond same-origin.
  * The share target (manifest `share_target`) POSTs to /share-target; the worker stashes the files
  * in a dedicated cache and redirects to /?shared=1, where the app picks them up (inbound.ts).
+ * The public guide pages (/guides, crawler files, the /ingest relay; seo/routes.ts) are not part of
+ * the app: they are never precached and the worker leaves their requests to the network, so a
+ * guide URL is never answered with the app shell (E-110).
  */
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import type { Plugin } from 'vite';
+import { GUIDES, RELAY, ROOT_FILES, isPublicFile } from './seo/routes.ts';
 
 const SKIP = new Set(['sw.js', '_headers', 'showcase.html', 'missing-asset.txt']);
 
@@ -28,6 +32,9 @@ const VERSION = ${JSON.stringify(version)};
 const CACHE = 'dasig-' + VERSION;
 const SHARE = 'dasig-share';
 const PRECACHE = ${JSON.stringify(['/', ...files.map((f) => '/' + f)])};
+const PUBLIC_PREFIXES = ${JSON.stringify([GUIDES + '/', RELAY + '/'])};
+const PUBLIC_PATHS = ${JSON.stringify([GUIDES, RELAY, ...ROOT_FILES.map((f) => '/' + f)])};
+const isPublic = (p) => PUBLIC_PATHS.includes(p) || PUBLIC_PREFIXES.some((x) => p.startsWith(x));
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
@@ -54,6 +61,7 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return;
   if (req.method === 'POST' && url.pathname === '/share-target') { e.respondWith(share(req)); return; }
   if (req.method !== 'GET') return;
+  if (isPublic(url.pathname)) return;
   e.respondWith((async () => {
     const c = await caches.open(CACHE);
     const hit = await c.match(req, { ignoreVary: true, ignoreSearch: req.mode === 'navigate' });
@@ -75,7 +83,7 @@ export function serviceWorker(): Plugin {
     },
     closeBundle() {
       const files = walk(outDir, outDir, [])
-        .filter((f) => !SKIP.has(f))
+        .filter((f) => !SKIP.has(f) && !isPublicFile(f))
         .sort();
       const h = createHash('sha256');
       for (const f of files) h.update(f).update(readFileSync(join(outDir, f)));

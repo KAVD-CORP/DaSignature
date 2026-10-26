@@ -121,5 +121,11 @@ export default tseslint.config(
     files: ['**/*.config.{ts,js}', '**/*.test.{ts,tsx}', 'e2e/**/*.ts', 'apps/web/e2e/**/*.ts'],
     rules: { 'no-restricted-syntax': 'off' },
   },
+  {
+    // Build-time generator for the public guide pages (E-108): canonical URLs, the repo link and
+    // the PostHog host are page content and config, never fetched by the app.
+    files: ['apps/web/seo/**/*.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
+  },
   prettier,
 );

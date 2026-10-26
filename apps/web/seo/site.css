@@ -1,0 +1,178 @@
+/* DaSignature guide pages (decisions.md E-108). Plain CSS, system fonts, brand tokens copied
+   from packages/ui/tokens/tokens.css (light and dark). Text pairings follow PM #31: muted text
+   only on --bg/--surface, accent never as text in light mode. */
+:root {
+  --bg: #fafaf8;
+  --surface: #ffffff;
+  --text: #141a3c;
+  --text-muted: #6b7090;
+  --border: #e4e4ec;
+  --primary: #141a3c;
+  --on-primary: #ffffff;
+  --accent: #e8b04a;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1126;
+    --surface: #161b3a;
+    --text: #f2f1ec;
+    --text-muted: #a3a8c8;
+    --border: #2a3163;
+    --primary: #e8b04a;
+    --on-primary: #141a3c;
+  }
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    17px/1.6 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+}
+a {
+  color: inherit;
+  text-underline-offset: 0.15em;
+}
+a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+main,
+footer {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+h1 {
+  font-size: clamp(1.9rem, 5vw, 2.6rem);
+  line-height: 1.15;
+  margin: 1.5rem 0 1rem;
+}
+h2 {
+  font-size: 1.4rem;
+  line-height: 1.3;
+  margin: 2.5rem 0 0.75rem;
+}
+h3 {
+  font-size: 1.05rem;
+  margin: 1.25rem 0 0.25rem;
+}
+p,
+li {
+  max-width: 40rem;
+}
+.lead {
+  font-size: 1.15rem;
+}
+.crumbs {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 1rem;
+}
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin: 1.5rem 0;
+}
+.cta span {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+.btn {
+  display: inline-block;
+  padding: 0.7rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-weight: 600;
+  text-decoration: none;
+}
+.btn.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.btn.small {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.95rem;
+}
+.steps {
+  padding-left: 1.4rem;
+}
+.steps li {
+  padding-left: 0.25rem;
+}
+.steps li::marker {
+  font-weight: 700;
+}
+.steps h3 {
+  margin-top: 1rem;
+}
+.steps p {
+  margin-top: 0.25rem;
+}
+section {
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+}
+.related ul {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.related li {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+}
+.related a {
+  font-weight: 600;
+}
+.related span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+footer {
+  margin-top: 3rem;
+  padding-bottom: 3rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}

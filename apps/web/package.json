@@ -50,6 +50,7 @@
     "jsdom": "^26.1.0",
     "pdf-lib": "^1.17.1",
     "postcss": "^8.5.31",
+    "posthog-js": "1.438.23",
     "tailwindcss": "^4.3.3",
     "vite": "^6.4.0"
   }

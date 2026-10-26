@@ -5,6 +5,14 @@ at runtime (SPEC Sec 5, PM #1). Your documents and signatures stay on your devic
 exactly what is stored, where, and what is encrypted, and what leaves the app (only what you
 export or share yourself).
 
+**The app sends nothing; the website's guide pages are separate.** The public help articles under
+`/guides` on the website (how-to pages about signing PDFs, which are not part of the app) may use
+cookieless page analytics, and only if the site owner has turned it on (decided Oct 26,
+decisions.md E-112). It counts page views and clicks on "Open the app" links; it keeps nothing in
+cookies or browser storage, records no sessions, and does not run at all if your browser sends Do
+Not Track or Global Privacy Control. None of it is ever loaded by the app itself, which stays
+analytics-free with no network calls; a build check fails if any analytics code reaches the app.
+
 ## Where data lives
 
 | Platform            | Database                                                  | Files (PDFs, exports, signature images) | Data key                                                                                                                                                                                                       |

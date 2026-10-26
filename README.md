@@ -3,6 +3,8 @@
 A private, local-first, open-source PDF signing app for the web (PWA), Windows, macOS, Linux,
 Android and iOS, built from one TypeScript codebase. **Your files never leave your device.** There
 are no accounts, no servers, no analytics, and the app makes no network calls at runtime.
+The public guide pages on the website (`/guides`) are separate from the app; see
+[docs/seo.md](docs/seo.md).
 
 ![Library](docs/screenshots/library.png)
 

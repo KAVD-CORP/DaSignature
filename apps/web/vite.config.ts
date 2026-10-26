@@ -6,6 +6,8 @@ import { dirname, join } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { CSP_META, headersFile } from './csp.ts';
 import { serviceWorker } from './pwa.ts';
+import { analyticsIsolation } from './seo/isolation.ts';
+import { seoPages } from './seo/plugin.ts';
 
 /**
  * Build-only: inject the Content-Security-Policy <meta> tag and emit the `_headers` file.
@@ -74,7 +76,9 @@ export default defineConfig({
     tailwindcss({ optimize: false }),
     securityHeaders(),
     pdfjsAssets(),
+    seoPages(),
     serviceWorker(),
+    analyticsIsolation(),
   ],
   build: {
     target: 'es2022',

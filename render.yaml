@@ -50,12 +50,59 @@ services:
       - path: /doc/*
         name: Cache-Control
         value: no-cache
+      # Public guide pages (E-108): unhashed HTML at /guides and /guides/<slug> revalidates; their
+      # assets under /guides/assets/ are 3 segments, so they already get the /*/*/* no-cache above.
+      - path: /guides
+        name: Cache-Control
+        value: no-cache
+      - path: /guides/*
+        name: Cache-Control
+        value: no-cache
+      # Crawler files at the root (E-108): short public cache; the build regenerates them.
+      - path: /robots.txt
+        name: Cache-Control
+        value: public, max-age=3600
+      - path: /sitemap.xml
+        name: Cache-Control
+        value: public, max-age=3600
+      - path: /llms.txt
+        name: Cache-Control
+        value: public, max-age=3600
+      - path: /llms-full.txt
+        name: Cache-Control
+        value: public, max-age=3600
     routes:
       # A missing hashed asset (an old index.html after a deploy) gets a tiny text/plain body, not
       # index.html: the module load fails cleanly instead of caching HTML for a year at a .js URL.
       - type: rewrite
         source: /assets/*
         destination: /missing-asset.txt
+      # Guide pages are built as /guides/index.html and /guides/<slug>/index.html (E-108). If Render
+      # already serves a directory's index.html at the clean URL, the file wins and these never fire;
+      # if it doesn't, they map the clean URLs (with or without a trailing slash) to the files, so a guide URL
+      # can never fall through to the app shell below.
+      - type: rewrite
+        source: /guides
+        destination: /guides/index.html
+      - type: rewrite
+        source: /guides/
+        destination: /guides/index.html
+      - type: rewrite
+        source: /guides/:slug
+        destination: /guides/:slug/index.html
+      - type: rewrite
+        source: /guides/:slug/
+        destination: /guides/:slug/index.html
+      - type: rewrite
+        source: /guides/assets/*
+        destination: /missing-asset.txt
+      # Guide-page analytics relay (E-112, only used when POSTHOG_KEY is set at build time): the
+      # guide pages send events to same-origin /ingest/*, which Render proxies to the PostHog host,
+      # so the CSP above stays unchanged. The app never calls it. If POSTHOG_HOST is changed, change
+      # this destination too (the build fails if they differ). Must stay above the SPA rule.
+      - type: rewrite
+        source: /ingest/*
+        destination: https://us.i.posthog.com/*
       # SPA: every path without a file is served index.html (files are matched first).
       - type: rewrite
         source: /*
